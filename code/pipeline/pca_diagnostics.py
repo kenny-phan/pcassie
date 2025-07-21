@@ -106,7 +106,7 @@ def plot_reconstructed_spectra(original, reconstructed, wave, title=None):
     plt.legend()
     plt.show()
 
-def plot_pca_subtraction(spectra, wave, start_wav, end_wav, component_count, preprocess=False):
+def plot_pca_subtraction(spectra, wave, start_wav, end_wav, first_comps=0, last_comps=0, preprocess=False):
     """Runs PCA subtraction and plots the results."""
     if preprocess:
         print("Preprocessing spectra...")
@@ -126,8 +126,8 @@ def plot_pca_subtraction(spectra, wave, start_wav, end_wav, component_count, pre
     eval_wdm, evec_wdm = compute_eigenvalues_and_vectors(wdm_covariance)
 
     # Remove components from TDM and WDM
-    tdm_reconstructed = remove_components(spectra[:, start_idx:end_idx].T, evec_tdm, component_count)
-    wdm_reconstructed = remove_components(spectra[:, start_idx:end_idx], evec_wdm, component_count)
+    tdm_reconstructed = remove_components(spectra[:, start_idx:end_idx].T, evec_tdm, first_comps, last_comps)
+    wdm_reconstructed = remove_components(spectra[:, start_idx:end_idx], evec_wdm, first_comps, last_comps)
 
     plot_covariance(tdm_covariance, wdm_covariance)
 

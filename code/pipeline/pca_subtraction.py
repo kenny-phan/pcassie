@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from pipeline.crires_functions import split_normalize
+from pipeline.utility_functions import split_normalize
 
 def convert_range_to_indices(wave, start, end):
     """Convert a wavelength range to indices."""
@@ -47,15 +47,34 @@ def explained_variance(eigenvalues):
     total_variance = np.sum(eigenvalues)
     return eigenvalues / total_variance
 
-def remove_components(data, eigenvectors, num_components):
-    """Reconstruct data matrix without the first num_components eigenvectors."""
+def remove_components(data, eigenvectors, first_comps=0, last_comps=0):
+    """
+    Reconstruct data matrix with the first and/or last eigenvectors removed.
 
-    projection_matrix = eigenvectors[:, num_components:-1]
+    Parameters:
+        data (ndarray): Data matrix (observations × features).
+        eigenvectors (ndarray): Eigenvectors (features × components).
+        first_comps (int): Number of components to remove from the start.
+        last_comps (int): Number of components to remove from the end.
+
+    Returns:
+        ndarray: Reconstructed data with selected components removed.
+    """
+    total_comps = eigenvectors.shape[1]
+    
+    # Compute the indices to keep
+    start = first_comps
+    end = total_comps - last_comps
+
+    if start >= end:
+        raise ValueError("Requested to remove all components — nothing left to reconstruct from.")
+
+    projection_matrix = eigenvectors[:, start:end]
     projected_data = np.dot(data, projection_matrix)
-
+    
     return np.dot(projected_data, projection_matrix.T)
 
-def pca_subtraction(spectra, start_idx, end_idx, component_count, pre=False):
+def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, pre=False):
     """Runs PCA subtraction on the provided spectra within a specified wavelength range.
     Args:
         spectra (np.ndarray): 2D array of shape (num_spectra, num_wavelengths).
@@ -81,14 +100,14 @@ def pca_subtraction(spectra, start_idx, end_idx, component_count, pre=False):
     #print(f"spectra shape: {spectra.shape}")
 
     # Remove components from TDM and WDM
-    tdm_reconstructed = remove_components(spectra[:, start_idx:end_idx].T, evec_tdm, component_count)
-    wdm_reconstructed = remove_components(spectra[:, start_idx:end_idx], evec_wdm, component_count)
+    tdm_reconstructed = remove_components(spectra[:, start_idx:end_idx].T, evec_tdm, first_comps, last_comps)
+    wdm_reconstructed = remove_components(spectra[:, start_idx:end_idx], evec_wdm, first_comps, last_comps)
 
     #print(f"shapes of tdm_reconstructed and wdm_reconstructed: {tdm_reconstructed.shape}, {wdm_reconstructed.shape}")
 
     return tdm_reconstructed, wdm_reconstructed
 
-def run_pca_on_detector_segments(flux, wave, component_count, pre=False, gap_size_px=5):
+def run_pca_on_detector_segments(flux, wave, first_comps=0, last_comps=0, pre=False, gap_size_px=5):
     """
     For a given index in stacked_spectra_perstep.npz, split the spectrum into detector segments
     using split_normalize() gaps, run PCA subtraction on each, and concatenate the results.
@@ -112,11 +131,7 @@ def run_pca_on_detector_segments(flux, wave, component_count, pre=False, gap_siz
         seg_flux = flux[:, start:end]  # shape: (n_spectra, segment_length)
         seg_wave = wave[start:end]
 
-        if seg_flux.shape[1] < component_count + 1:
-            continue
-
-        tdm, wdm = pca_subtraction(seg_flux, 0, seg_flux.shape[1], component_count, pre=pre)
-        print("15th tdm, wdm values ", tdm[:][15], wdm[:][15], "tdm, wdm shapes ", tdm.shape, wdm.shape)
+        tdm, wdm = pca_subtraction(seg_flux, 0, seg_flux.shape[1], first_comps, last_comps, pre=pre)
         tdm_reconstructed[:, start:end] = tdm.T
         wdm_reconstructed[:, start:end] = wdm
         wave[start:end] = seg_wave

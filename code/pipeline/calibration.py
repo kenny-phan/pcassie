@@ -9,7 +9,6 @@
 6. fit a polynomial to the centroid positions until no correlated residuals
 7. find fit precision: deltaV (velocity) = std(residuals) * speed of light / central spectrum wavelength
 8. interpolate all single spectra by a third order spline to derived wavelength grid (converting pixel to wavelength via the fit eqn)
-
 """
 
 import numpy as np
