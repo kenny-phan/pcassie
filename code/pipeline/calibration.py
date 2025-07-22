@@ -19,7 +19,7 @@ from scipy.optimize import curve_fit
 from scipy.signal import resample, find_peaks
 from astropy.constants import c
 
-from crires_functions import split_divide_by_median
+from code.pipeline.utility_functions import split_divide_by_median
 
 def gaussian(x, amp, mu, sigma, offset):
     return amp * np.exp(-0.5 * ((x - mu) / sigma) ** 2) + offset

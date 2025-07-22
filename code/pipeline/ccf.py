@@ -88,8 +88,6 @@ def sum_ccf_matrices(data_wave, normalized_flux_array, pca_subtracted, segment_i
         pca_i = pca_subtracted[i]
         nanmask = ~np.isnan(wave_i) & ~np.isnan(flux_i[0])
 
-        #print("empty array for wave, flux, or tdm?", not wave_i.any(), not flux_i.any(), not pca_i.any())
-
         sort_idx = np.argsort(sim_wave)
         sim_interp = interp1d(sim_wave[sort_idx], sim_flux[sort_idx], bounds_error=False, fill_value=0)
         sim_on_obs_grid = sim_interp(wave_i[nanmask] * 0.001)
@@ -102,13 +100,9 @@ def sum_ccf_matrices(data_wave, normalized_flux_array, pca_subtracted, segment_i
         ccf_vals_2d = []
 
         for ii in range(flux_i.shape[0]):
-            print(f"[i={i}, ii={ii}] wave_i[nanmask].shape: {wave_i[nanmask].shape}, pca_i[ii].shape: {pca_i[ii].shape}, sim_on_obs_grid.shape: {sim_on_obs_grid.shape}")
-
             vel_grid, ccf_vals = compute_ccf_over_velocity_range(wave_i[nanmask], pca_i[ii], -sim_on_obs_grid, velocities)
             vel_grid_2d.append(vel_grid)
             ccf_vals_2d.append(ccf_vals)
-
-            #print("empty array for ccf_vals, vel_grid?", not np.array(ccf_vals_2d).any(), not np.array(vel_grid_2d).any())
         
         total_vel_grid.append(vel_grid_2d)
         total_ccf_vals.append(ccf_vals_2d)
@@ -155,7 +149,7 @@ def compute_vbary_timeseries(ra_deg, dec_deg, times_utc, location):
     barycorr = target.radial_velocity_correction(obstime=times)
     return barycorr.to(u.km/u.s).value
 
-def doppler_correct_ccf(summed_ccf, consistent_vel_grid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, v_bary):
+def doppler_correct_ccf(summed_ccf, consistent_vel_grid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys):
     v_bary_timeseries = []
     all_doppler_corrects = []
 
@@ -190,4 +184,21 @@ def doppler_correct_ccf(summed_ccf, consistent_vel_grid, mjd_obs, ra, dec, locat
         cropped_v.append(v[mask])
 
     return np.array(cropped_ccf), np.array(cropped_v)
-        
+
+def run_ccf_on_detector_segments(wave_1d, normalized_flux_array, 
+                                 all_pca, segment_indices, sim_wave, 
+                                 sim_flux, mjd_obs, ra, dec, location, 
+                                 a, P_orb, i, T_not, v_sys, remove_segments=None): #sim_wave in um for now
+
+    if remove_segments is None:
+        remove_segments = []
+
+    # Filter segments
+    keep_indices = [i for i in range(len(segment_indices)) if i not in remove_segments]
+
+    filtered_segment_indices = [segment_indices[i] for i in keep_indices]
+    filtered_all_pca = [all_pca[i] for i in keep_indices]
+
+    summed_ccf, consistent_vel_grid = sum_ccf_matrices(wave_1d, normalized_flux_array, filtered_all_pca, filtered_segment_indices, sim_wave, sim_flux)
+    cropped_ccf_array, cropped_v_grid = doppler_correct_ccf(summed_ccf, consistent_vel_grid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys)
+    return cropped_ccf_array, cropped_v_grid

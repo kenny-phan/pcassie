@@ -1,7 +1,6 @@
 import numpy as np
-import pandas as pd
-
-from pipeline.utility_functions import split_normalize
+import jax
+import jax.numpy as jnp
 
 def convert_range_to_indices(wave, start, end):
     """Convert a wavelength range to indices."""
@@ -10,130 +9,80 @@ def convert_range_to_indices(wave, start, end):
     return start_index, end_index
 
 def preprocess(spectra):
-    """ 
-    Takes a spectral array (axis=0 wavelength bins, axis=1 individual spectra), 
-    divides by median spectra, subtracts the median, 
-    and divides each spectra by its own standard deviation. 
     """
-
-    # Normalize by the median of this spectrum
-    norm_flux = spectra / np.median(spectra)
-
-    # Compute the median at each wavelength (column)
+    Normalize by the median spectrum, subtract the median at each wavelength,
+    and divide each spectrum by its own standard deviation.
+    """
+    norm_flux = spectra / np.median(spectra)  # global normalization
     median_flux = np.median(norm_flux, axis=0)
+    median_subtracted = norm_flux - median_flux
 
-    # Subtract the median from each spectrum
-    median_subtracted_flux = norm_flux - median_flux  # shape: (num_spectra, num_wavelengths)
+    # Use norm for per-spectrum std estimation
+    row_std = np.linalg.norm(median_subtracted, axis=1, keepdims=True) / np.sqrt(median_subtracted.shape[1])
+    return median_subtracted / row_std
 
-    # Compute the standard deviation for each spectrum (row)
-    row_std = np.std(median_subtracted_flux, axis=1, keepdims=True)  # shape: (num_spectra, 1)
+def compute_covariance_matrix(data):
+    """Compute the covariance matrix using NumPy (faster than pandas)."""
+    centered = data - np.mean(data, axis=0)
+    return centered.T @ centered / (data.shape[0] - 1)
 
-    # Divide each row by its own standard deviation
-    return median_subtracted_flux / row_std  # shape: (num_spectra, num_wavelengths)
-
-def compute_eigenvalues_and_vectors(covariance_matrix):
-    """Compute eigenvalues and eigenvectors of the covariance matrix."""
-
-    eigenvalues, eigenvectors = np.linalg.eigh(covariance_matrix)
-    # Sort eigenvalues and eigenvectors in descending order
-    idx = np.argsort(eigenvalues)[::-1]
-    eigenvalues = eigenvalues[idx]
-    eigenvectors = eigenvectors[:, idx]
-    return eigenvalues, eigenvectors
+def compute_eigenvalues_and_vectors(cov_matrix):
+    """Compute and sort eigenvalues/eigenvectors in descending order."""
+    evals, evecs = jnp.linalg.eigh(cov_matrix)
+    idx = jnp.argsort(evals)[::-1]
+    return evals[idx], evecs[:, idx]
 
 def explained_variance(eigenvalues):
-    """Calculate the explained variance from eigenvalues."""
-
-    total_variance = np.sum(eigenvalues)
-    return eigenvalues / total_variance
+    """Calculate explained variance ratio."""
+    return eigenvalues / np.sum(eigenvalues)
 
 def remove_components(data, eigenvectors, first_comps=0, last_comps=0):
-    """
-    Reconstruct data matrix with the first and/or last eigenvectors removed.
-
-    Parameters:
-        data (ndarray): Data matrix (observations × features).
-        eigenvectors (ndarray): Eigenvectors (features × components).
-        first_comps (int): Number of components to remove from the start.
-        last_comps (int): Number of components to remove from the end.
-
-    Returns:
-        ndarray: Reconstructed data with selected components removed.
-    """
+    """Remove specified principal components from the data."""
     total_comps = eigenvectors.shape[1]
-    
-    # Compute the indices to keep
-    start = first_comps
-    end = total_comps - last_comps
+    start_comps = first_comps
+    end_comps = total_comps - last_comps
 
-    if start >= end:
+    if start_comps >= end_comps:
+        #print(f"total # of components: {total_comps}. removing {start_comps} from the beginning and {last_comps} from the end")
         raise ValueError("Requested to remove all components — nothing left to reconstruct from.")
 
-    projection_matrix = eigenvectors[:, start:end]
-    projected_data = np.dot(data, projection_matrix)
-    
-    return np.dot(projected_data, projection_matrix.T)
+    proj_matrix = eigenvectors[:, start_comps:end_comps]
+    projected = data @ proj_matrix
+    return projected @ proj_matrix.T
 
 def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, pre=False):
-    """Runs PCA subtraction on the provided spectra within a specified wavelength range.
+    """
+    Perform PCA subtraction in a wavelength slice from `start_idx` to `end_idx`.
+
     Args:
         spectra (np.ndarray): 2D array of shape (num_spectra, num_wavelengths).
-        wave (np.ndarray): 1D array of wavelengths corresponding to the spectra.
-        start_wav (float): Start wavelength for PCA analysis.
-        end_wav (float): End wavelength for PCA analysis.
-        component_count (int): Number of principal components to remove."""
+        start_idx (int): Start index for PCA region.
+        end_idx (int): End index for PCA region.
+        first_comps (int): Components to remove from the beginning.
+        last_comps (int): Components to remove from the end.
+        pre (bool): Whether to apply preprocessing first.
 
-    if pre: 
+    Returns:
+        (tdm_result, wdm_result): PCA-subtracted arrays.
+    """
+    if pre:
         spectra = preprocess(spectra)
-    else:
-        spectra = spectra
 
-    tdm_df = pd.DataFrame(spectra[:, start_idx:end_idx].T)
-    wdm_df = pd.DataFrame(spectra[:, start_idx:end_idx])
+    spectra_slice = spectra[:, start_idx:end_idx]
+    tdm = spectra_slice.T  # Transpose for TDM
+    wdm = spectra_slice     # WDM as-is
 
-    tdm_covariance = tdm_df.cov().values
-    wdm_covariance = wdm_df.cov().values
+    # Fast covariance
+    tdm_cov = compute_covariance_matrix(tdm)
+    wdm_cov = compute_covariance_matrix(wdm)
 
-    eval_tdm, evec_tdm  = compute_eigenvalues_and_vectors(tdm_covariance)
-    eval_wdm, evec_wdm = compute_eigenvalues_and_vectors(wdm_covariance)
+    eval_tdm, evec_tdm = compute_eigenvalues_and_vectors(tdm_cov)
+    eval_wdm, evec_wdm = compute_eigenvalues_and_vectors(wdm_cov)
 
-    #print(f"spectra shape: {spectra.shape}")
+    #print("tdm, wdm evec shapes:", evec_tdm.shape, evec_wdm.shape)
 
-    # Remove components from TDM and WDM
-    tdm_reconstructed = remove_components(spectra[:, start_idx:end_idx].T, evec_tdm, first_comps, last_comps)
-    wdm_reconstructed = remove_components(spectra[:, start_idx:end_idx], evec_wdm, first_comps, last_comps)
+    # PCA removal
+    tdm_clean = remove_components(tdm, evec_tdm, first_comps, last_comps)
+    wdm_clean = remove_components(wdm, evec_wdm, first_comps, last_comps)
 
-    #print(f"shapes of tdm_reconstructed and wdm_reconstructed: {tdm_reconstructed.shape}, {wdm_reconstructed.shape}")
-
-    return tdm_reconstructed, wdm_reconstructed
-
-def run_pca_on_detector_segments(flux, wave, first_comps=0, last_comps=0, pre=False, gap_size_px=5):
-    """
-    For a given index in stacked_spectra_perstep.npz, split the spectrum into detector segments
-    using split_normalize() gaps, run PCA subtraction on each, and concatenate the results.
-    Returns concatenated tdm, wdm, and wavelength arrays.
-    """
-
-    _, gaps = split_normalize(wave, flux[0], gap_size_px)
-    
-    # Section edges: start, all gaps+1, end
-    section_edges = np.concatenate(([0], gaps + 1, [len(wave)]))
-    
-    n_spectra, n_pixels = flux.shape
-    wave = np.zeros((n_pixels))
-    tdm_reconstructed = np.zeros((n_spectra, n_pixels))
-    wdm_reconstructed = np.zeros((n_spectra, n_pixels))
-
-    # For each detector segment
-    for i in range(len(section_edges) - 1):
-        start, end = section_edges[i], section_edges[i+1]
-        print(f"Processing segment {i}: start={start}, end={end}, length={end - start}")
-        seg_flux = flux[:, start:end]  # shape: (n_spectra, segment_length)
-        seg_wave = wave[start:end]
-
-        tdm, wdm = pca_subtraction(seg_flux, 0, seg_flux.shape[1], first_comps, last_comps, pre=pre)
-        tdm_reconstructed[:, start:end] = tdm.T
-        wdm_reconstructed[:, start:end] = wdm
-        wave[start:end] = seg_wave
-
-    return tdm_reconstructed, wdm_reconstructed, wave
+    return tdm_clean.T, wdm_clean
