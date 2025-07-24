@@ -4,7 +4,7 @@ from pipeline.utility_functions import split_detectors
 #from pipeline.calibration import calibrate_cr2res
 from pipeline.pca_subtraction import pca_subtraction
 #from pipeline.pca_diagnostics import plot_spectral_square
-from pipeline.ccf import run_ccf_on_detector_segments, kp_vel_grid
+from pipeline.ccf import run_ccf_on_detector_segments
 from pipeline.ccf_tests import sn_map
 
 def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location, 
@@ -40,9 +40,9 @@ def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location,
                                  a, P_orb, i, T_not, v_sys, transit_start_end, remove_segments=remove_segments)
     
     print("Making the S/N map...")
-    sn_map = sn_map(planet_frame_ccf, planet_frame_vgrid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end)    
+    sn_map_array = sn_map(planet_frame_ccf, planet_frame_vgrid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end)    
     
     print("Pipeline completed successfully.")
-    return all_tdm, all_wdm, all_wave, earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit, sn_map
+    return all_tdm, all_wdm, all_wave, earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit, sn_map_array
 
     
