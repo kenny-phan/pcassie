@@ -5,6 +5,7 @@ from pipeline.utility_functions import split_detectors
 from pipeline.pca_subtraction import pca_subtraction
 #from pipeline.pca_diagnostics import plot_spectral_square
 from pipeline.ccf import run_ccf_on_detector_segments, kp_vel_grid
+from pipeline.ccf_tests import sn_map
 
 def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location, 
                                  a, P_orb, i, T_not, v_sys, v_shift_range=np.linspace(-100_000, 100_000, 201), transit_start_end=None, gap_size=5, remove_segments=[], plot=False):
@@ -39,9 +40,9 @@ def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location,
                                  a, P_orb, i, T_not, v_sys, transit_start_end, remove_segments=remove_segments)
     
     print("Making the S/N map...")
-    kp_range_ccf = kp_vel_grid(planet_frame_ccf, planet_frame_vgrid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end)    
+    sn_map = sn_map(planet_frame_ccf, planet_frame_vgrid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end)    
     
     print("Pipeline completed successfully.")
-    return all_tdm, all_wdm, all_wave, earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit, kp_range_ccf
+    return all_tdm, all_wdm, all_wave, earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit, sn_map
 
     
