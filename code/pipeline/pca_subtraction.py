@@ -1,6 +1,7 @@
 import numpy as np
-import jax
 import jax.numpy as jnp
+from jax import config
+config.update("jax_enable_x64", True)
 
 def convert_range_to_indices(wave, start, end):
     """Convert a wavelength range to indices."""
@@ -28,9 +29,14 @@ def compute_covariance_matrix(data):
 
 def compute_eigenvalues_and_vectors(cov_matrix):
     """Compute and sort eigenvalues/eigenvectors in descending order."""
-    evals, evecs = jnp.linalg.eigh(cov_matrix)
+    jax_cov_matrix = jnp.array(cov_matrix, dtype=jnp.float64)
+    evals, evecs = jnp.linalg.eigh(jax_cov_matrix)
     idx = jnp.argsort(evals)[::-1]
-    return evals[idx], evecs[:, idx]
+
+    evals_sorted = np.array(evals[idx])
+    evecs_sorted = np.array(evecs[:, idx])
+
+    return evals_sorted, evecs_sorted
 
 def explained_variance(eigenvalues):
     """Calculate explained variance ratio."""

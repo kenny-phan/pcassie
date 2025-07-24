@@ -36,24 +36,22 @@ def split_divide_by_median(wave, flux, m):
         section_norm = section_clean / median
         norm_flux[start:end] = section_norm
 
-    return norm_flux, gaps, segment_indices
+    return norm_flux, segment_indices
 
 def split_detectors(wave, flux, m=5):
     normalized_flux = []
-    gaps_list = []  # Store gaps for each spectrum
 
     for ii in range(len(flux)):
         single_flux = flux[ii, :]
         single_wave = wave[ii, :]
         
-        single_norm_flux, gaps, segment_indices = split_divide_by_median(single_wave, single_flux, m)
+        single_norm_flux, segment_indices = split_divide_by_median(single_wave, single_flux, m)
         
         normalized_flux.append(single_norm_flux)
-        gaps_list.append(gaps)
 
-    normalized_flux_array, gaps_arr = np.array(normalized_flux), np.array(gaps_list)
+    normalized_flux_array = np.array(normalized_flux)
 
-    return normalized_flux_array, gaps_arr, segment_indices # might not need gaps_arr going forward
+    return normalized_flux_array, segment_indices 
 
 def mask_gap_edges(wave, gaps, n):
     """
