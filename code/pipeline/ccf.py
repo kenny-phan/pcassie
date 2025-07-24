@@ -44,14 +44,13 @@ def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux):
                 interp_func = interp1d(shifted_wave, sorted_flux, bounds_error=False, fill_value=0.0)
                 shifted_flux = interp_func(detector_wavs)
 
-                shifted_flux = (shifted_flux - np.mean(shifted_flux)) / np.std(shifted_flux)
-                single_data_spectra = (single_data_spectra - np.mean(single_data_spectra)) / np.std(single_data_spectra)
-
+                shifted_flux = (shifted_flux - np.mean(shifted_flux)) #/ np.std(shifted_flux)
+                single_data_spectra = (single_data_spectra - np.mean(single_data_spectra)) #/ np.std(single_data_spectra)
 
                 # Cross-correlate (dot product)
-                xcorr = np.correlate(shifted_flux, single_data_spectra)
+                xcorr = np.dot(shifted_flux, single_data_spectra)
                 norm_xcorr = xcorr / np.sqrt(np.sum(shifted_flux**2) * np.sum(single_data_spectra**2))
-                norm_xcorr_arr.append(norm_xcorr[0])
+                norm_xcorr_arr.append(norm_xcorr)
 
             norm_xcorr_arr = np.array(norm_xcorr_arr)
             detector_xcorr.append(norm_xcorr_arr)
@@ -59,7 +58,7 @@ def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux):
         detector_xcorr = np.array(detector_xcorr)
         stacked_segment_xcorr.append(detector_xcorr)
 
-    return np.array(stacked_segment_xcorr)
+    return np.sum(np.array(stacked_segment_xcorr), axis=0)
 
 # doppler shift correction functions
 
@@ -74,9 +73,27 @@ def rv_amplitude(a, P_orb, i):
     return v_orb * np.sin(i)
 
 def doppler_correction(a, P_orb, i, t, T_not, v_sys, v_bary, Kp=None):
+    """
+    a in au, P_orb in days, i in degrees
+    t in MJD
+    T_not in MJD (mid-transit time)
+    v_sys in km/s
+    v_bary in km/s
+    Kp in m/s, if None, will compute from a, P_orb, i
+    """
+    a = a * 1.495979e11  # Convert au to meters
+    P_orb = P_orb * 24 * 3600  # Convert days to seconds
+    i = np.radians(i)  # Convert degrees to radians
+    t = t * 24 * 3600  # Convert MJD to seconds
+    T_not = T_not * 24 * 3600  # Convert MJD to seconds
+    v_bary = v_bary * 1000  # Convert km/s to m/s   
+    v_sys = v_sys * 1000  # Convert km/s to m/s
+
     if Kp is None:
         Kp = rv_amplitude(a, P_orb, i)
     phi = orbital_phase(t, T_not, P_orb)
+
+    #print(f"Kp: {Kp} m/s", "orbital phase:", phi)
 
     return (Kp * np.sin(2*np.pi*phi)) + v_sys + v_bary
 
@@ -100,45 +117,50 @@ def compute_vbary_timeseries(ra_deg, dec_deg, times_utc, location):
     return barycorr.to(u.km/u.s).value
 
 def doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, Kp=None):
-    v_bary_timeseries = []
+    v_bary_timeseries = compute_vbary_timeseries(ra, dec, mjd_obs, location)
+    #print("v_bary_timeseries: ", v_bary_timeseries)
     all_doppler_corrects = []
 
     for jj in range(len(mjd_obs)):
-        v_bary = compute_vbary_timeseries(ra[jj], dec[jj], mjd_obs[jj], location)
-        v_bary_timeseries.append(v_bary)
 
         if Kp is None:
-            correction = doppler_correction(a=a, P_orb=P_orb, i=i, t=mjd_obs[jj], T_not=T_not, v_sys=v_sys, v_bary=v_bary)
+            correction = doppler_correction(a=a, P_orb=P_orb, i=i, t=mjd_obs[jj], T_not=T_not, v_sys=v_sys, v_bary=v_bary_timeseries[jj])
 
         else:
-            correction = doppler_correction(a=a, P_orb=P_orb, i=i, t=mjd_obs[jj], T_not=T_not, v_sys=v_sys, v_bary=v_bary, Kp=Kp)
+            correction = doppler_correction(a=a, P_orb=P_orb, i=i, t=mjd_obs[jj], T_not=T_not, v_sys=v_sys, v_bary=v_bary_timeseries[jj], Kp=Kp)
 
         all_doppler_corrects.append(correction)
 
+    # check for nans in doppler correction
+    # print("Doppler correction contains NaNs: ", np.any(np.isnan(all_doppler_corrects)))
+    # print("Doppler corrections:", all_doppler_corrects)
     new_vel_grids = []
 
     for kk in range(len(summed_ccf)):
         new_vel_grid = v_shift_range + all_doppler_corrects[kk]
+        #print("start, end of new_vel_grid: ", new_vel_grid[0], new_vel_grid[-1])
         new_vel_grids.append(new_vel_grid)
 
     min_v, max_v = -50000, 50000
-    common_v_grid = np.linspace(min_v, max_v, 100)  # Common velocity grid for cropping
+    common_v_grid = np.linspace(min_v, max_v, 101)  # Common velocity grid for cropping
+
+    #check for nans in new_vel_grids
+    #print("New velocity grids contain NaNs: ", np.any([np.any(np.isnan(v)) for v in new_vel_grids]))
 
     cropped_ccf = []
-    cropped_v = []
 
     for i in range(len(new_vel_grids)):
         v = new_vel_grids[i]
         ccf = summed_ccf[i]
             
-        # Define interpolator over current velocity grid
-        interp_func = interp1d(v, ccf, kind='linear', bounds_error=False, fill_value=np.nan)
-        interp_ccf = interp_func(common_v_grid)  # now length 100
-
+        common_mask = (v >= min_v) & (v <= max_v)
+        interp_ccf = np.interp(common_v_grid, v[common_mask], ccf[common_mask])
         cropped_ccf.append(interp_ccf)
-        cropped_v.append(common_v_grid)
 
-    return np.array(cropped_ccf), np.array(cropped_v)
+    #check for nans in cropped_ccf
+    #print("Cropped CCF contains NaNs: ", np.any(np.isnan(cropped_ccf)))
+
+    return np.array(cropped_ccf), common_v_grid
 
 def remove_out_of_transit(transit_start_end, grid, mjd_obs):
 
@@ -163,14 +185,17 @@ def run_ccf_on_detector_segments(all_wave,
     filtered_all_pca = [all_pca[i] for i in keep_indices]
     filtered_all_wave = [all_wave[i] for i in keep_indices]
 
-    summed_ccf = ccf(filtered_all_pca, filtered_all_wave, v_shift_range, sim_wave, sim_flux)
+    earth_frame_ccf = ccf(filtered_all_pca, filtered_all_wave, v_shift_range, sim_wave, sim_flux)
 
-    cropped_ccf_array, cropped_v_grid = doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys)
+    # check for NaNs in earth_frame_ccf
+    #print("Earth frame CCF contains NaNs: ", np.any(np.isnan(earth_frame_ccf)))
+
+    planet_frame_ccf, planet_frame_vgrid = doppler_correct_ccf(earth_frame_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys)
 
     in_transit = remove_out_of_transit(
-    transit_start_end, np.sum(cropped_ccf_array, axis=0), mjd_obs)
+    transit_start_end, planet_frame_ccf, mjd_obs)
 
-    return cropped_ccf_array, cropped_v_grid, in_transit
+    return earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit
 
 def inject_simulated_signal(wave, flux, sim_wave, sim_flux, 
                             mjd_obs, ra, dec, location, 
@@ -187,22 +212,27 @@ def inject_simulated_signal(wave, flux, sim_wave, sim_flux,
         spectra_grid[i, :] = flux[i, :] - shifted_sim
     return spectra_grid
 
-def sn_map(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end):
+def kp_vel_grid(cropped_ccf_array, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end, Kp_range=np.linspace(50_000, 150_000, 101)):
     """
     Compute SNR map for the CCF.
     """
-    Kp_range = np.arange(0, 250_000, 1000)  # in m/s
     Kp_range_ccf = []   
+    
+    try: 
+        for Kp in Kp_range:                         
+            this_cropped_ccf, _ = doppler_correct_ccf(cropped_ccf_array, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, Kp=Kp)
+            if np.any(np.isnan(this_cropped_ccf)):
+                print(f"Kp = {Kp}, NaNs found in corrected CCF")
 
-    for Kp in Kp_range:                         
-        this_cropped_ccf, _ = doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, Kp=Kp)
+            Kp_range_ccf_in_transit = remove_out_of_transit(
+                transit_start_end=transit_start_end,
+                grid=this_cropped_ccf,
+                mjd_obs=mjd_obs)
+            
+            Kp_range_ccf.append(np.sum(np.array(Kp_range_ccf_in_transit), axis=0))
 
-        Kp_range_ccf_in_transit = remove_out_of_transit(
-            transit_start_end=transit_start_end,
-            grid=this_cropped_ccf,
-            mjd_obs=mjd_obs)
-        
-        Kp_range_ccf.append(Kp_range_ccf_in_transit)
+    except Exception as e:
+        print(f"Error processing Kp = {Kp}: {e} Try decreasing the Kp range.")
+        return None 
 
     return np.array(Kp_range_ccf)
-        

@@ -4,13 +4,16 @@ from pipeline.utility_functions import split_detectors
 #from pipeline.calibration import calibrate_cr2res
 from pipeline.pca_subtraction import pca_subtraction
 #from pipeline.pca_diagnostics import plot_spectral_square
-from pipeline.ccf import run_ccf_on_detector_segments, sn_map
+from pipeline.ccf import run_ccf_on_detector_segments, kp_vel_grid
 
 def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location, 
-                                 a, P_orb, i, T_not, v_sys, v_shift_range=np.arange(-100_000, 100_000, 1000), transit_start_end=None, gap_size=5, remove_segments=[], plot=False):
+                                 a, P_orb, i, T_not, v_sys, v_shift_range=np.linspace(-100_000, 100_000, 201), transit_start_end=None, gap_size=5, remove_segments=[], plot=False):
 
+    print("Running pipeline...")
+    print("Normalizing flux array...")
     normalized_flux_array, segment_indices = split_detectors(wave, flux, m=gap_size)
 
+    print("Running PCA subtraction on detector segments...")
     jax_tdm, jax_wdm, all_wave = [], [], []
 
     for ii in range(len(segment_indices)):
@@ -29,13 +32,16 @@ def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location,
     all_tdm = [np.array(x) for x in jax_tdm]
     all_wdm = [np.array(x) for x in jax_wdm]
 
-    cropped_ccf_array, cropped_v_grid, in_transit = run_ccf_on_detector_segments(all_wave, 
+    print("Running CCF on detector segments...")
+    earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit = run_ccf_on_detector_segments(all_wave, 
                                  all_tdm, v_shift_range, segment_indices, sim_wave, 
                                  sim_flux, mjd_obs, ra, dec, location, 
-                                 a, P_orb, i, T_not, v_sys, transit_start_end, remove_segments=None)
+                                 a, P_orb, i, T_not, v_sys, transit_start_end, remove_segments=remove_segments)
     
-    #kp_sn = sn_map(summed_ccf, consistent_vel_grid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end)
+    print("Making the S/N map...")
+    kp_range_ccf = kp_vel_grid(planet_frame_ccf, planet_frame_vgrid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end)    
     
-    return all_tdm, all_wdm, all_wave, cropped_ccf_array, cropped_v_grid, in_transit#, kp_sn
+    print("Pipeline completed successfully.")
+    return all_tdm, all_wdm, all_wave, earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit, kp_range_ccf
 
     
