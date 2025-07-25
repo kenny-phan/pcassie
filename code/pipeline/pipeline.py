@@ -14,11 +14,18 @@ def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location,
     print("Normalizing flux array...")
     normalized_flux_array, segment_indices = split_detectors(wave, flux, m=gap_size)
 
+    if remove_segments is None:
+        remove_segments = []
+
+    # Filter segments
+    keep_indices = [i for i in range(len(segment_indices)) if i not in remove_segments]
+    print(f"Retaining detector indices {keep_indices}")
+
     print("Running PCA subtraction on detector segments...")
     jax_tdm, jax_wdm, all_wave = [], [], []
 
-    for ii in range(len(segment_indices)):
-        start, end = segment_indices[ii]
+    for keep_index in keep_indices:
+        start, end = segment_indices[keep_index]
         #print("start, end: ", start, end)
         wave_i = wave[0, start:end]
         flux_i = normalized_flux_array[:, start:end]
@@ -35,9 +42,9 @@ def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location,
 
     print("Running CCF on detector segments...")
     earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit = run_ccf_on_detector_segments(all_wave, 
-                                 all_tdm, v_shift_range, segment_indices, sim_wave, 
+                                 all_tdm, v_shift_range, keep_indices, sim_wave, 
                                  sim_flux, mjd_obs, ra, dec, location, 
-                                 a, P_orb, i, T_not, v_sys, transit_start_end, remove_segments=remove_segments)
+                                 a, P_orb, i, T_not, v_sys, transit_start_end)
     
     print("Making the S/N map...")
     Kp_range_ccf, sn_map_array = sn_map(planet_frame_ccf, planet_frame_vgrid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end) 

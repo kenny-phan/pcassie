@@ -1,40 +1,76 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import ttest_ind
-from pipeline.ccf import doppler_correct_ccf, remove_out_of_transit
+from scipy.interpolate import interp1d
+from pipeline.ccf import compute_vbary_timeseries, doppler_correction, doppler_shift, doppler_correct_ccf, remove_out_of_transit
 
-def sn_map(cropped_ccf_array, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end, Kp_range=np.linspace(50_000, 150_000, 101)):
+def inject_simulated_signal(wave, flux, sim_wave, sim_flux, 
+                            mjd_obs, ra, dec, location, 
+                            a, P_orb, i, T_not, v_sys):
     """
-    Compute SNR map for the CCF.
+    Inject a simulated signal into the observed flux array.
     """
-    Kp_range_ccf = []   
+    v_bary = compute_vbary_timeseries(ra, dec, mjd_obs, location)
+    correction = doppler_correction(a=a, P_orb=P_orb, i=i, t=mjd_obs, T_not=T_not, v_sys=v_sys, v_bary=v_bary)
+    sim_on_obs_grid = interp1d(sim_wave, sim_flux, bounds_error=False, fill_value=0)(wave * 0.001)  # Convert wave to microns
+    spectra_grid = np.zeros_like(flux)
+    for i in range(len(mjd_obs)):
+        shifted_sim = doppler_shift(sim_on_obs_grid, correction[i])
+        spectra_grid[i, :] = flux[i, :] - shifted_sim
+    return spectra_grid
+
+def sn_map(
+    cropped_ccf_array, v_shift_range, mjd_obs, ra, dec, location,
+    a, P_orb, i, T_not, v_sys, transit_start_end,
+    Kp_range=np.linspace(50_000, 150_000, 101)
+):
+    """
+    Optimized SNR map computation for the CCF.
+    """
+    n_Kp = len(Kp_range)
+    n_v = len(v_shift_range)
+
+    # Preallocate result array instead of appending
+    Kp_range_ccf = np.zeros((n_Kp, n_v), dtype=np.float32)
     
-    try: 
-        for Kp in Kp_range:                         
-            this_cropped_ccf, _ = doppler_correct_ccf(cropped_ccf_array, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, Kp=Kp)
-            if np.any(np.isnan(this_cropped_ccf)):
-                print(f"Kp = {Kp}, NaNs found in corrected CCF")
+    for idx, Kp in enumerate(Kp_range):
+        try:
+            # Doppler correct
+            this_cropped_ccf, _ = doppler_correct_ccf(
+                cropped_ccf_array, v_shift_range, mjd_obs,
+                ra, dec, location, a, P_orb, i, T_not, v_sys, Kp=Kp
+            )
 
-            Kp_range_ccf_in_transit = remove_out_of_transit(
+            if np.isnan(this_cropped_ccf).any():
+                continue  # Skip Kp values with NaNs
+
+            # Remove out-of-transit
+            ccf_in_transit = remove_out_of_transit(
                 transit_start_end=transit_start_end,
                 grid=this_cropped_ccf,
-                mjd_obs=mjd_obs)
-            
-            Kp_range_ccf.append(np.sum(np.array(Kp_range_ccf_in_transit), axis=0))
+                mjd_obs=mjd_obs
+            )
 
-    except Exception as e:
-        print(f"Error processing Kp = {Kp}: {e} Try decreasing the Kp range.")
-        return None 
-    
-    Kp_range_ccf = np.array(Kp_range_ccf)
+            # Sum across time axis (axis=0)
+            Kp_range_ccf[idx] = np.sum(ccf_in_transit, axis=0)
 
-    exclude_planet_mask = (np.abs(v_shift_range) < 15000)  # Exclude velocities within 15 km/s of the planet's velocity
+        except Exception as e:
+            print(f"Skipping Kp = {Kp:.1f} due to error: {e}")
+            continue
+
+    # Mask near-planet velocities (±15 km/s = 15000 m/s)
+    exclude_planet_mask = (np.abs(v_shift_range) < 15000)
+
+    # Standard deviation of CCF away from planet signal
     outside_std = np.std(Kp_range_ccf[:, exclude_planet_mask], axis=1)
+
+    # Avoid division by zero
+    outside_std[outside_std == 0] = np.nan
+
+    # Compute S/N map
     sn_map_array = Kp_range_ccf / outside_std[:, np.newaxis]
 
     return Kp_range_ccf, sn_map_array
-
-from scipy.stats import ttest_ind
 
 def welch_t_test(Kp_range_ccf, zoom_radius=15):
     Kp_range_ccf = Kp_range_ccf

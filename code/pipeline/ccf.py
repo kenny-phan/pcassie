@@ -23,7 +23,7 @@ def doppler_shift(wave_arr, velocity):
     """
     return wave_arr * (1 + velocity / C)
 
-def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux):
+def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux, speed=True):
     sort_idx = np.argsort(sim_wave)
     sorted_wave = sim_wave[sort_idx]
     sorted_flux = sim_flux[sort_idx]
@@ -41,8 +41,14 @@ def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux):
                 shifted_wave = doppler_shift(sorted_wave, v_shift)
 
                 # Interpolate shifted flux onto segment wavelength grid
-                interp_func = interp1d(shifted_wave, sorted_flux, bounds_error=False, fill_value=0.0)
-                shifted_flux = interp_func(detector_wavs)
+                if speed:   
+                    # np.interp is faster but less accurate for v < 0; good for sampling the PCA space
+                    shifted_flux = np.interp(detector_wavs, shifted_wave, sorted_flux)
+
+                else:
+                    # scipy's interp1d is slowe but more accurate for v < 0; good for getting science values 
+                    interp_func = interp1d(shifted_wave, sorted_flux, bounds_error=False, fill_value=0.0)
+                    shifted_flux = interp_func(detector_wavs)
 
                 shifted_flux = (shifted_flux - np.mean(shifted_flux)) #/ np.std(shifted_flux)
                 single_data_spectra = (single_data_spectra - np.mean(single_data_spectra)) #/ np.std(single_data_spectra)
@@ -174,18 +180,10 @@ def remove_out_of_transit(transit_start_end, grid, mjd_obs):
 def run_ccf_on_detector_segments(all_wave, 
                                  all_pca, v_shift_range, segment_indices, sim_wave, 
                                  sim_flux, mjd_obs, ra, dec, location, 
-                                 a, P_orb, i, T_not, v_sys, transit_start_end, remove_segments=None): #sim_wave in um for now
+                                 a, P_orb, i, T_not, v_sys, transit_start_end): #sim_wave in um for now
 
-    if remove_segments is None:
-        remove_segments = []
-
-    # Filter segments
-    keep_indices = [i for i in range(len(segment_indices)) if i not in remove_segments]
-
-    filtered_all_pca = [all_pca[i] for i in keep_indices]
-    filtered_all_wave = [all_wave[i] for i in keep_indices]
-
-    earth_frame_ccf = ccf(filtered_all_pca, filtered_all_wave, v_shift_range, sim_wave, sim_flux)
+    
+    earth_frame_ccf = ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux)
 
     # check for NaNs in earth_frame_ccf
     #print("Earth frame CCF contains NaNs: ", np.any(np.isnan(earth_frame_ccf)))
@@ -197,18 +195,5 @@ def run_ccf_on_detector_segments(all_wave,
 
     return earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit
 
-def inject_simulated_signal(wave, flux, sim_wave, sim_flux, 
-                            mjd_obs, ra, dec, location, 
-                            a, P_orb, i, T_not, v_sys):
-    """
-    Inject a simulated signal into the observed flux array.
-    """
-    v_bary = compute_vbary_timeseries(ra, dec, mjd_obs, location)
-    correction = doppler_correction(a=a, P_orb=P_orb, i=i, t=mjd_obs, T_not=T_not, v_sys=v_sys, v_bary=v_bary)
-    sim_on_obs_grid = interp1d(sim_wave, sim_flux, bounds_error=False, fill_value=0)(wave * 0.001)  # Convert wave to microns
-    spectra_grid = np.zeros_like(flux)
-    for i in range(len(mjd_obs)):
-        shifted_sim = doppler_shift(sim_on_obs_grid, correction[i])
-        spectra_grid[i, :] = flux[i, :] - shifted_sim
-    return spectra_grid
+
 
