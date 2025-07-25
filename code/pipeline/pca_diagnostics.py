@@ -4,7 +4,7 @@ import pandas as pd
 
 from pipeline.pca_subtraction import *
 
-def plot_spectral_square(spectra_array, wave, title=None, x_label=None, y_label=None):
+def plot_spectral_square(spectra_array, wave, title=None, x_label=None, y_label=None, cbar_label=None):
 
     n_spec = spectra_array.shape[0]
 
@@ -21,7 +21,7 @@ def plot_spectral_square(spectra_array, wave, title=None, x_label=None, y_label=
                           cmap='viridis',
                           vmin=np.percentile(spectra_array, 1),
                           vmax=np.percentile(spectra_array, 99))
-    plt.colorbar(mesh, label='Flux')
+    plt.colorbar(mesh, label=cbar_label or 'Flux')
     plt.xlabel(x_label or 'Wavelength')
     plt.ylabel(y_label or 'Spectrum Index')
     plt.title(title or 'Spectral Square Plot')

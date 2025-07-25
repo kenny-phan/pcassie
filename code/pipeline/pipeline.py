@@ -5,7 +5,7 @@ from pipeline.utility_functions import split_detectors
 from pipeline.pca_subtraction import pca_subtraction
 #from pipeline.pca_diagnostics import plot_spectral_square
 from pipeline.ccf import run_ccf_on_detector_segments
-from pipeline.ccf_tests import sn_map
+from pipeline.ccf_tests import sn_map, welch_t_test
 
 def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location, 
                                  a, P_orb, i, T_not, v_sys, v_shift_range=np.linspace(-100_000, 100_000, 201), transit_start_end=None, gap_size=5, remove_segments=[], plot=False):
@@ -40,9 +40,12 @@ def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location,
                                  a, P_orb, i, T_not, v_sys, transit_start_end, remove_segments=remove_segments)
     
     print("Making the S/N map...")
-    sn_map_array = sn_map(planet_frame_ccf, planet_frame_vgrid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end)    
+    Kp_range_ccf, sn_map_array = sn_map(planet_frame_ccf, planet_frame_vgrid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end) 
+
+    print("Performing Welch's t-test...")
+    in_trail_vals, out_of_trail_vals, t_stat, p_value = welch_t_test(Kp_range_ccf)   
     
     print("Pipeline completed successfully.")
-    return all_tdm, all_wdm, all_wave, earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit, sn_map_array
+    return all_tdm, all_wdm, all_wave, earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit, Kp_range_ccf, sn_map_array, in_trail_vals, out_of_trail_vals, t_stat, p_value
 
     
