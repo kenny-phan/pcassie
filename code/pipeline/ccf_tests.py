@@ -73,10 +73,7 @@ def sn_map(
     return Kp_range_ccf, sn_map_array
 
 def welch_t_test(Kp_range_ccf, zoom_radius=15):
-    Kp_range_ccf = Kp_range_ccf
-
     # Define zoom radius in pixels (not km/s here)
-    zoom_radius = 15
     Kp_range_ccf = np.array(Kp_range_ccf)  # Ensure it's a NumPy array
 
     # Step 1: Find max index in S/N map

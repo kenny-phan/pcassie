@@ -8,7 +8,9 @@ from pipeline.ccf import run_ccf_on_detector_segments
 from pipeline.ccf_tests import sn_map, welch_t_test
 
 def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location, 
-                                 a, P_orb, i, T_not, v_sys, v_shift_range=np.linspace(-100_000, 100_000, 201), transit_start_end=None, gap_size=5, remove_segments=[], plot=False):
+                                 a, P_orb, i, T_not, v_sys, v_shift_range=np.linspace(-100_000, 100_000, 201), 
+                                 transit_start_end=None, gap_size=5, remove_segments=[], 
+                                 first_components=5, last_components=5):
 
     print("Running pipeline...")
     print("Normalizing flux array...")
@@ -31,7 +33,7 @@ def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location,
         flux_i = normalized_flux_array[:, start:end]
         nanmask = ~np.isnan(wave_i) & ~np.isnan(flux_i[0])
         #print(flux_i[:, nanmask].shape)
-        tdm_concat, wdm_concat = pca_subtraction(flux_i[:, nanmask], 0, np.sum(nanmask), first_comps=10, last_comps=10, pre=True)
+        tdm_concat, wdm_concat = pca_subtraction(flux_i[:, nanmask], 0, np.sum(nanmask), first_comps=first_components, last_comps=last_components, pre=True)
         
         jax_tdm.append(tdm_concat)
         jax_wdm.append(wdm_concat)
