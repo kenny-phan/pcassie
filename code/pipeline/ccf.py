@@ -23,6 +23,7 @@ def doppler_shift(wave_arr, velocity):
     """
     return wave_arr * (1 + velocity / C)
 
+
 def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux, speed=True):
     sort_idx = np.argsort(sim_wave)
     sorted_wave = sim_wave[sort_idx]
@@ -66,17 +67,20 @@ def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux, speed=True):
 
     return np.sum(np.array(stacked_segment_xcorr), axis=0)
 
-# doppler shift correction functions
 
+# doppler shift correction functions
 def orbital_phase(t, T_not, P_orb):
     return (t - T_not)/P_orb
+
 
 def orbit_velocity(a, P_orb):
     return 2 * np.pi * a / P_orb 
 
+
 def rv_amplitude(a, P_orb, i):
     v_orb = orbit_velocity(a, P_orb)
     return v_orb * np.sin(i)
+
 
 def doppler_correction(a, P_orb, i, t, T_not, v_sys, v_bary, Kp=None):
     """
@@ -103,6 +107,7 @@ def doppler_correction(a, P_orb, i, t, T_not, v_sys, v_bary, Kp=None):
 
     return (Kp * np.sin(2*np.pi*phi)) + v_sys + v_bary
 
+
 def compute_vbary_timeseries(ra_deg, dec_deg, times_utc, location):
     """
     Compute v_bary(t) for a target at (ra, dec) and a time array.
@@ -121,6 +126,7 @@ def compute_vbary_timeseries(ra_deg, dec_deg, times_utc, location):
 
     barycorr = target.radial_velocity_correction(obstime=times)
     return barycorr.to(u.km/u.s).value
+
 
 def doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, Kp=None):
     v_bary_timeseries = compute_vbary_timeseries(ra, dec, mjd_obs, location)
@@ -168,6 +174,7 @@ def doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a
 
     return np.array(cropped_ccf), common_v_grid
 
+
 def remove_out_of_transit(transit_start_end, grid, mjd_obs):
 
     # remove spectra outside of transit start and end
@@ -176,6 +183,7 @@ def remove_out_of_transit(transit_start_end, grid, mjd_obs):
     filtered_grid = [grid[i] for i in range(grid.shape[0]) if transit_mask[i]]
 
     return filtered_grid
+
 
 def run_ccf_on_detector_segments(all_wave, 
                                  all_pca, v_shift_range, segment_indices, sim_wave, 
@@ -194,6 +202,3 @@ def run_ccf_on_detector_segments(all_wave,
     transit_start_end, planet_frame_ccf, mjd_obs)
 
     return earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit
-
-
-

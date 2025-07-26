@@ -24,6 +24,7 @@ from pipeline.utility_functions import split_divide_by_median
 def gaussian(x, amp, mu, sigma, offset):
     return amp * np.exp(-0.5 * ((x - mu) / sigma) ** 2) + offset
 
+
 def fit_gaussian_to_peaks(x, y, peaks, window=5):
     centroids = []
     for idx in peaks:
@@ -45,6 +46,7 @@ def fit_gaussian_to_peaks(x, y, peaks, window=5):
         except Exception:
             centroids.append(mu_guess)
     return np.array(centroids)
+
 
 def fit_segments_to_wavelengths(segment_centroids, tel_centroid_dict, telluric_wavelength, deg=3):
     fits = {}
@@ -77,11 +79,13 @@ def fit_segments_to_wavelengths(segment_centroids, tel_centroid_dict, telluric_w
 
     return fits
 
+
 def precision(residuals, wave_arr):
     """Wave array in nm"""
     std = np.std(residuals)
     central_wave = np.median(wave_arr)
     return std * c / (central_wave)
+
 
 def split_and_stack(arr, gaps):
     segments = []
@@ -92,6 +96,7 @@ def split_and_stack(arr, gaps):
     maxlen = max(len(seg) for seg in segments)
     stacked = np.array([np.pad(seg, (0, maxlen - len(seg)), constant_values=np.nan) for seg in segments])
     return stacked
+
 
 def calibrate_cr2res(data_wave, data_flux, telluric_wave, telluric_flux, gap_size_px=5, poly_order=5):
     """

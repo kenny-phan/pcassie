@@ -11,6 +11,7 @@ def convert_range_to_indices(wave, start, end):
     end_index = np.searchsorted(wave, end)
     return start_index, end_index
 
+
 def preprocess(spectra):
     """
     Normalize by the median spectrum, subtract the median at each wavelength,
@@ -24,10 +25,12 @@ def preprocess(spectra):
     row_std = np.linalg.norm(median_subtracted, axis=1, keepdims=True) / np.sqrt(median_subtracted.shape[1])
     return median_subtracted / row_std
 
+
 def compute_covariance_matrix(data):
     """Compute the covariance matrix using NumPy (faster than pandas)."""
     centered = data - np.mean(data, axis=0)
     return centered.T @ centered / (data.shape[0] - 1)
+
 
 def compute_eigenvalues_and_vectors(cov_matrix):
     """Compute and sort eigenvalues/eigenvectors in descending order."""
@@ -40,9 +43,11 @@ def compute_eigenvalues_and_vectors(cov_matrix):
 
     return evals_sorted, evecs_sorted
 
+
 def explained_variance(eigenvalues):
     """Calculate explained variance ratio."""
     return eigenvalues / np.sum(eigenvalues)
+
 
 def remove_components(data, eigenvectors, first_comps=0, last_comps=0):
     """Remove specified principal components from the data."""
@@ -57,6 +62,7 @@ def remove_components(data, eigenvectors, first_comps=0, last_comps=0):
     proj_matrix = eigenvectors[:, start_comps:end_comps]
     projected = data @ proj_matrix
     return projected @ proj_matrix.T
+
 
 def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, pre=False):
     """
@@ -84,8 +90,8 @@ def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, pr
     tdm_cov = compute_covariance_matrix(tdm)
     wdm_cov = compute_covariance_matrix(wdm)
 
-    eval_tdm, evec_tdm = compute_eigenvalues_and_vectors(tdm_cov)
-    eval_wdm, evec_wdm = compute_eigenvalues_and_vectors(wdm_cov)
+    _, evec_tdm = compute_eigenvalues_and_vectors(tdm_cov)
+    _, evec_wdm = compute_eigenvalues_and_vectors(wdm_cov)
 
     #print("tdm, wdm evec shapes:", evec_tdm.shape, evec_wdm.shape)
 

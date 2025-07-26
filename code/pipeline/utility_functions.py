@@ -15,6 +15,7 @@ def normalize_zero_one(spectrum):
 
     return zero_to_one
 
+
 def split_divide_by_median(wave, flux, m):
     """
     Splits the spectrum into sections based on gaps in the wavelength array,
@@ -51,6 +52,7 @@ def split_divide_by_median(wave, flux, m):
 
     return norm_flux, segment_indices
 
+
 def split_detectors(wave, flux, m=5):
     normalized_flux = []
 
@@ -65,6 +67,7 @@ def split_detectors(wave, flux, m=5):
     normalized_flux_array = np.array(normalized_flux)
 
     return normalized_flux_array, segment_indices 
+
 
 def mask_gap_edges(wave, gaps, n):
     """

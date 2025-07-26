@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import ttest_ind
 from scipy.interpolate import interp1d
-from pipeline.ccf import compute_vbary_timeseries, doppler_correction, doppler_shift, doppler_correct_ccf, remove_out_of_transit
+from pipeline.ccf import *
 
 def inject_simulated_signal(wave, flux, sim_wave, sim_flux, 
                             mjd_obs, ra, dec, location, 
@@ -18,6 +18,7 @@ def inject_simulated_signal(wave, flux, sim_wave, sim_flux,
         shifted_sim = doppler_shift(sim_on_obs_grid, correction[i])
         spectra_grid[i, :] = flux[i, :] - shifted_sim
     return spectra_grid
+
 
 def sn_map(
     cropped_ccf_array, v_shift_range, mjd_obs, ra, dec, location,
@@ -72,6 +73,7 @@ def sn_map(
 
     return Kp_range_ccf, sn_map_array
 
+
 def welch_t_test(Kp_range_ccf, zoom_radius=15):
     # Define zoom radius in pixels (not km/s here)
     Kp_range_ccf = np.array(Kp_range_ccf)  # Ensure it's a NumPy array
@@ -100,6 +102,28 @@ def welch_t_test(Kp_range_ccf, zoom_radius=15):
     t_stat, p_value = ttest_ind(in_trail_vals, out_of_trail_vals, equal_var=False)
 
     return in_trail_vals, out_of_trail_vals, t_stat, p_value
+
+
+def find_max_sn_in_expected_range(sn_array, v_grid, a, P_orb, i, offset=75, zoom_radius=15):
+    Kp = rv_amplitude(a * 1.495979e11, P_orb * 24 * 3600, np.radians(i)) / 1000
+    #print(Kp)
+
+    row_idx = int(Kp) - offset
+    col_idx = np.argwhere(v_grid == 0)[0][0]
+
+    #print(row_idx, col_idx)
+
+    n_rows, n_cols = sn_array.shape
+    min_row = max(0, row_idx - zoom_radius)
+    max_row_clip = min(n_rows, row_idx + zoom_radius + 1)  # +1 because slicing is exclusive
+    min_col = max(0, col_idx - zoom_radius)
+    max_col_clip = min(n_cols, col_idx + zoom_radius + 1)
+    #print(min_row, max_row_clip, min_col, max_col_clip)
+
+    expected_range = sn_array[min_row:max_row_clip, min_col:max_col_clip]
+
+    return np.max(expected_range)
+
 
 def plot_welch_t_test(in_trail_vals, out_of_trail_vals, t_stat, p_value, bins=None): 
     plt.figure(figsize=(10, 6))

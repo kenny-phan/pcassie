@@ -5,7 +5,7 @@ from pipeline.utility_functions import split_detectors
 from pipeline.pca_subtraction import pca_subtraction
 #from pipeline.pca_diagnostics import plot_spectral_square
 from pipeline.ccf import run_ccf_on_detector_segments
-from pipeline.ccf_tests import sn_map, welch_t_test
+from pipeline.ccf_tests import sn_map, welch_t_test, find_max_sn_in_expected_range
 
 def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location, 
                                  a, P_orb, i, T_not, v_sys, v_shift_range=np.linspace(-100_000, 100_000, 201), 
@@ -57,4 +57,64 @@ def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location,
     print("Pipeline completed successfully.")
     return all_tdm, all_wdm, all_wave, earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit, Kp_range_ccf, sn_map_array, in_trail_vals, out_of_trail_vals, t_stat, p_value
 
+
+def sample_full_pca_components(first_components, end_components, wave, flux, sim_wave, 
+        sim_flux, mjd_obs, ra, dec, location,
+        a, P_orb, i, T_not, v_sys, transit_start_end,
+        remove_segments=[], sn_test=-50, sn_max=-100):
+
+    first_best_results, first_sn_max, first_best_components = sample_components(
+        first_components, end_components, wave, flux, sim_wave, 
+        sim_flux, mjd_obs, ra, dec, location,
+        a, P_orb, i, T_not, v_sys, transit_start_end=transit_start_end,
+        remove_segments=remove_segments, sn_test=sn_test, sn_max=sn_max, sample_end=False)
+
+    best_results, sn_max, last_best_components = sample_components(
+        end_components, first_best_components - 1, wave, flux, sim_wave, 
+        sim_flux, mjd_obs, ra, dec, location,
+        a, P_orb, i, T_not, v_sys, transit_start_end=transit_start_end,
+        remove_segments=remove_segments, sn_test=first_sn_max, sn_max=sn_max, sample_end=True, results=first_best_results)
+
+    print(f"Best fc = {first_best_components - 1}, best lc = {last_best_components - 1}, S/N = {sn_max}")
+
+    return best_results, first_best_components - 1, last_best_components - 1, sn_max
     
+
+def sample_components(start_components, stable_components, wave, flux, sim_wave, 
+                      sim_flux, mjd_obs, ra, dec, paranal,
+                        a, P_orb, i, T_not, v_sys,
+                        transit_start_end,
+                        remove_segments=[], sn_test=-50, sn_max=-100, sample_end=False, results=None):
+
+    while sn_test >= sn_max:
+
+        best_results = results
+        sn_max = sn_test
+        best_components = start_components
+
+        # Run pipeline
+        if sample_end: 
+            print("sampling from the end. new sn_max =", sn_test, "fc = ", stable_components, "lc =", start_components)
+
+            results = pipeline(
+                wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, paranal,
+                a, P_orb, i, T_not, v_sys, transit_start_end=transit_start_end, remove_segments=remove_segments,
+                first_components=stable_components, last_components=start_components
+            )
+
+        else: 
+            print("sampling from the start. new sn_max =", sn_test, "fc = ", start_components, "lc =", stable_components)
+
+            results = pipeline(
+                wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, paranal,
+                a, P_orb, i, T_not, v_sys, transit_start_end=transit_start_end, remove_segments=remove_segments,
+                first_components=start_components, last_components=stable_components 
+            )
+
+        # Compute S/N
+        sn_test = find_max_sn_in_expected_range(results[8], results[5] / 1000, a, P_orb, i)
+        print("sn_test =", sn_test)
+
+        start_components += 1
+
+    return best_results, sn_max, best_components
