@@ -140,3 +140,50 @@ def plot_pca_subtraction(spectra, wave, start_wav, end_wav, first_comps=0, last_
     plot_reconstructed_spectra(spectra[:, start_idx:end_idx], tdm_reconstructed.T, wave[start_idx:end_idx], title="TDM Reconstructed Spectrum")
     plot_reconstructed_spectra(spectra[:, start_idx:end_idx], wdm_reconstructed, wave[start_idx:end_idx], title="WDM Reconstructed Spectrum")
 
+
+    ### CCF Plot Functions 
+
+    def plot_intranit_ccfs(planet_frame_vgrid, in_transit, mean_subtracted=False):
+        plt.figure(figsize=(10, 6))
+
+        if mean_subtracted:
+            mean_subtracted_sum = np.zeros_like(planet_frame_vgrid)
+            for i, ccf in enumerate(in_transit):
+                ccf -= np.mean(ccf)  # Normalize each CCF by subtracting the mean
+                mean_subtracted_sum += ccf
+                plt.plot(np.array(planet_frame_vgrid) / 1000, ccf, label=f"Spectrum {i+1}")
+            plt.plot(planet_frame_vgrid / 1000, mean_subtracted_sum, label="Mean Subtracted Sum", color='black', linewidth=2)
+            plt.title("Mean-Subtracted In-transit CCFs")
+
+        else: 
+            sum = np.zeros_like(planet_frame_vgrid)
+            for i, ccf in enumerate(in_transit):
+                sum += ccf
+                plt.plot(np.array(planet_frame_vgrid) / 1000, ccf, label=f"Spectrum {i+1}")
+            plt.plot(planet_frame_vgrid / 1000, sum, label="Sum", color='black', linewidth=2)
+            plt.title("In-transit CCFs")
+
+        plt.xlabel(r"Velocity $[kms^{-1}]$")
+        plt.ylabel("CCF co-added value")
+        plt.legend(ncol=3, loc='lower right', fontsize='small')
+        plt.grid()
+        plt.show()
+
+## CCF TEST PLOT FUNCTIONS
+
+def plot_welch_t_test(in_trail_vals, out_of_trail_vals, t_stat, p_value, bins=None): 
+    plt.figure(figsize=(10, 6))
+    bins = bins or [0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50] 
+
+    plt.hist(out_of_trail_vals, bins=bins, label='Out-of-trail', color='white', histtype='step', edgecolor='blue', density=True)
+    plt.hist(in_trail_vals, bins=bins, label='In-trail', color='white', histtype='step', edgecolor='orange', density=True)
+
+    plt.axvline(np.mean(in_trail_vals), color='orange', linestyle='--', label='In-trail mean')
+    plt.axvline(np.mean(out_of_trail_vals), color='blue', linestyle='--', label='Out-of-trail mean')
+
+    plt.title(f"Welch’s t-test\nT = {t_stat:.2f}, p = {p_value:.2e}")
+    plt.xlabel("CCF Value")
+    plt.ylabel("Density")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()

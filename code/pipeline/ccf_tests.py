@@ -122,24 +122,4 @@ def find_max_sn_in_expected_range(sn_array, v_grid, a, P_orb, i, offset=75, zoom
 
     expected_range = sn_array[min_row:max_row_clip, min_col:max_col_clip]
 
-    return np.max(expected_range)
-
-
-def plot_welch_t_test(in_trail_vals, out_of_trail_vals, t_stat, p_value, bins=None): 
-    plt.figure(figsize=(10, 6))
-    bins = bins or [0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50] 
-
-    plt.hist(out_of_trail_vals, bins=bins, label='Out-of-trail', color='white', histtype='step', edgecolor='blue', density=True)
-    plt.hist(in_trail_vals, bins=bins, label='In-trail', color='white', histtype='step', edgecolor='orange', density=True)
-
-    plt.axvline(np.mean(in_trail_vals), color='orange', linestyle='--', label='In-trail mean')
-    plt.axvline(np.mean(out_of_trail_vals), color='blue', linestyle='--', label='Out-of-trail mean')
-
-    plt.title(f"Welch’s t-test\nT = {t_stat:.2f}, p = {p_value:.2e}")
-    plt.xlabel("CCF Value")
-    plt.ylabel("Density")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-    
+    return np.max(expected_range)   
