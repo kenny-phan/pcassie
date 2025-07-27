@@ -6,6 +6,7 @@ from astropy.time import Time
 from numba import njit
 from scipy.interpolate import interp1d
 
+from pipeline.utility_functions import debug_print
 
 @njit
 def doppler_shift(wave_arr, velocity):
@@ -82,7 +83,7 @@ def rv_amplitude(a, P_orb, i):
     return v_orb * np.sin(i)
 
 
-def doppler_correction(a, P_orb, i, t, T_not, v_sys, v_bary, Kp=None):
+def doppler_correction(a, P_orb, i, t, T_not, v_sys, v_bary, Kp=None, verbose=False):
     """
     a in au, P_orb in days, i in degrees
     t in MJD
@@ -103,7 +104,7 @@ def doppler_correction(a, P_orb, i, t, T_not, v_sys, v_bary, Kp=None):
         Kp = rv_amplitude(a, P_orb, i)
     phi = orbital_phase(t, T_not, P_orb)
 
-    #print(f"Kp: {Kp} m/s", "orbital phase:", phi)
+    debug_print(verbose, f"Kp: {Kp} m/s, orbital phase: {phi}")
 
     return (Kp * np.sin(2*np.pi*phi)) + v_sys + v_bary
 
@@ -128,9 +129,9 @@ def compute_vbary_timeseries(ra_deg, dec_deg, times_utc, location):
     return barycorr.to(u.km/u.s).value
 
 
-def doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, Kp=None):
+def doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, Kp=None, verbose=False):
     v_bary_timeseries = compute_vbary_timeseries(ra, dec, mjd_obs, location)
-    #print("v_bary_timeseries: ", v_bary_timeseries)
+    debug_print(verbose, f"v_bary_timeseries: {v_bary_timeseries}")
     all_doppler_corrects = []
 
     for jj in range(len(mjd_obs)):
@@ -144,20 +145,21 @@ def doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a
         all_doppler_corrects.append(correction)
 
     # check for nans in doppler correction
-    # print("Doppler correction contains NaNs: ", np.any(np.isnan(all_doppler_corrects)))
-    # print("Doppler corrections:", all_doppler_corrects)
+    debug_print(verbose, f"Doppler correction contains NaNs: {np.any(np.isnan(all_doppler_corrects))}")
+    debug_print(verbose, f"Doppler corrections: {all_doppler_corrects}")
+
     new_vel_grids = []
 
     for kk in range(len(summed_ccf)):
         new_vel_grid = v_shift_range + all_doppler_corrects[kk]
-        #print("start, end of new_vel_grid: ", new_vel_grid[0], new_vel_grid[-1])
+        debug_print(verbose, f"start, end of new_vel_grid: {new_vel_grid[0]}, {new_vel_grid[-1]}")
         new_vel_grids.append(new_vel_grid)
 
     min_v, max_v = -50000, 50000
     common_v_grid = np.linspace(min_v, max_v, 101)  # Common velocity grid for cropping
 
     #check for nans in new_vel_grids
-    #print("New velocity grids contain NaNs: ", np.any([np.any(np.isnan(v)) for v in new_vel_grids]))
+    debug_print(verbose, f"New velocity grids contain NaNs: {np.any([np.any(np.isnan(v)) for v in new_vel_grids])}")
 
     cropped_ccf = []
 
@@ -170,7 +172,7 @@ def doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a
         cropped_ccf.append(interp_ccf)
 
     #check for nans in cropped_ccf
-    #print("Cropped CCF contains NaNs: ", np.any(np.isnan(cropped_ccf)))
+    debug_print(verbose, f"Cropped CCF contains NaNs: {np.any(np.isnan(cropped_ccf))}")
 
     return np.array(cropped_ccf), common_v_grid
 
@@ -188,13 +190,13 @@ def remove_out_of_transit(transit_start_end, grid, mjd_obs):
 def run_ccf_on_detector_segments(all_wave, 
                                  all_pca, v_shift_range, segment_indices, sim_wave, 
                                  sim_flux, mjd_obs, ra, dec, location, 
-                                 a, P_orb, i, T_not, v_sys, transit_start_end): #sim_wave in um for now
+                                 a, P_orb, i, T_not, v_sys, transit_start_end, verbose=False): #sim_wave in um for now
 
     
     earth_frame_ccf = ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux)
 
     # check for NaNs in earth_frame_ccf
-    #print("Earth frame CCF contains NaNs: ", np.any(np.isnan(earth_frame_ccf)))
+    debug_print(verbose, f"Earth frame CCF contains NaNs: {np.any(np.isnan(earth_frame_ccf))}")
 
     planet_frame_ccf, planet_frame_vgrid = doppler_correct_ccf(earth_frame_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys)
 

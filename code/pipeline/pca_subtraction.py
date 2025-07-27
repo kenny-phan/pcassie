@@ -5,6 +5,8 @@ import jax.numpy as jnp
 from jax import config
 config.update("jax_enable_x64", True)
 
+from pipeline.utility_functions import debug_print
+
 def convert_range_to_indices(wave, start, end):
     """Convert a wavelength range to indices."""
     start_index = np.searchsorted(wave, start)
@@ -49,14 +51,14 @@ def explained_variance(eigenvalues):
     return eigenvalues / np.sum(eigenvalues)
 
 
-def remove_components(data, eigenvectors, first_comps=0, last_comps=0):
+def remove_components(data, eigenvectors, first_comps=0, last_comps=0, verbose=False):
     """Remove specified principal components from the data."""
     total_comps = eigenvectors.shape[1]
     start_comps = first_comps
     end_comps = total_comps - last_comps
 
     if start_comps >= end_comps:
-        #print(f"total # of components: {total_comps}. removing {start_comps} from the beginning and {last_comps} from the end")
+        debug_print(verbose, f"total # of components: {total_comps}. removing {start_comps} from the beginning and {last_comps} from the end")
         raise ValueError("Requested to remove all components — nothing left to reconstruct from.")
 
     proj_matrix = eigenvectors[:, start_comps:end_comps]
@@ -64,7 +66,7 @@ def remove_components(data, eigenvectors, first_comps=0, last_comps=0):
     return projected @ proj_matrix.T
 
 
-def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, pre=False):
+def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, pre=False, verbose=False):
     """
     Perform PCA subtraction in a wavelength slice from `start_idx` to `end_idx`.
 
@@ -93,7 +95,7 @@ def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, pr
     _, evec_tdm = compute_eigenvalues_and_vectors(tdm_cov)
     _, evec_wdm = compute_eigenvalues_and_vectors(wdm_cov)
 
-    #print("tdm, wdm evec shapes:", evec_tdm.shape, evec_wdm.shape)
+    debug_print(verbose, "tdm, wdm evec shapes:", evec_tdm.shape, evec_wdm.shape)
 
     # PCA removal
     tdm_clean = remove_components(tdm, evec_tdm, first_comps, last_comps)

@@ -88,3 +88,8 @@ def mask_gap_edges(wave, gaps, n):
     mask[:n] = True
     mask[-n:] = True
     return mask
+
+
+def debug_print(verbose, *args, **kwargs):
+    if verbose:
+        print(*args, **kwargs)

@@ -1,19 +1,18 @@
 import numpy as np
 
-from pipeline.utility_functions import split_detectors
-#from pipeline.calibration import calibrate_cr2res
+from pipeline.utility_functions import split_detectors, debug_print
 from pipeline.pca_subtraction import pca_subtraction
-#from pipeline.pca_diagnostics import plot_spectral_square
 from pipeline.ccf import run_ccf_on_detector_segments
 from pipeline.ccf_tests import sn_map, welch_t_test, find_max_sn_in_expected_range
 
-def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location, 
-                                 a, P_orb, i, T_not, v_sys, v_shift_range=np.linspace(-100_000, 100_000, 201), 
-                                 transit_start_end=None, gap_size=5, remove_segments=[], 
-                                 first_components=5, last_components=5):
+def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), verbose=True, **kwargs):
 
-    print("Running pipeline...")
-    print("Normalizing flux array...")
+    wave, flux, mjd_obs, ra, dec, location = kwargs['wave'], kwargs['flux'], kwargs['mjd_obs'], kwargs['ra'], kwargs['dec'], kwargs['location']
+    a, P_orb, i, T_not, v_sys, transit_start_end = kwargs['a'], kwargs['P_orb'], kwargs['i'], kwargs['T_not'], kwargs['v_sys'], kwargs['transit_start_end']
+    gap_size, remove_segments, first_components, last_components = kwargs['gap_size'], kwargs['remove_segments'], kwargs['first_components'], kwargs['last_components']
+
+    debug_print(verbose, "Running pipeline...")
+    debug_print(verbose, "Normalizing flux array...")
     normalized_flux_array, segment_indices = split_detectors(wave, flux, m=gap_size)
 
     if remove_segments is None:
@@ -21,9 +20,9 @@ def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location,
 
     # Filter segments
     keep_indices = [i for i in range(len(segment_indices)) if i not in remove_segments]
-    print(f"Retaining detector indices {keep_indices}")
+    debug_print(verbose, f"Retaining detector indices {keep_indices}")
 
-    print("Running PCA subtraction on detector segments...")
+    debug_print(verbose, "Running PCA subtraction on detector segments...")
     jax_tdm, jax_wdm, all_wave = [], [], []
 
     for keep_index in keep_indices:
@@ -42,49 +41,44 @@ def pipeline(wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, location,
     all_tdm = [np.array(x) for x in jax_tdm]
     all_wdm = [np.array(x) for x in jax_wdm]
 
-    print("Running CCF on detector segments...")
+    debug_print(verbose, "Running CCF on detector segments...")
     earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit = run_ccf_on_detector_segments(all_wave, 
                                  all_tdm, v_shift_range, keep_indices, sim_wave, 
                                  sim_flux, mjd_obs, ra, dec, location, 
                                  a, P_orb, i, T_not, v_sys, transit_start_end)
     
-    print("Making the S/N map...")
+    debug_print(verbose, "Making the S/N map...")
     Kp_range_ccf, sn_map_array = sn_map(planet_frame_ccf, planet_frame_vgrid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end) 
 
-    print("Performing Welch's t-test...")
+    debug_print(verbose, "Performing Welch's t-test...")
     in_trail_vals, out_of_trail_vals, t_stat, p_value = welch_t_test(Kp_range_ccf)   
     
-    print("Pipeline completed successfully.")
+    debug_print(verbose, "Pipeline completed successfully.")
     return all_tdm, all_wdm, all_wave, earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit, Kp_range_ccf, sn_map_array, in_trail_vals, out_of_trail_vals, t_stat, p_value
 
 
-def sample_full_pca_components(first_components, end_components, wave, flux, sim_wave, 
-        sim_flux, mjd_obs, ra, dec, location,
-        a, P_orb, i, T_not, v_sys, transit_start_end,
-        remove_segments=[], sn_test=-50, sn_max=-100):
+def sample_full_pca_components(sim_wave, 
+        sim_flux, sn_test=-50, sn_max=-100, verbose=True, **kwargs):
+    
+    first_components, last_components = kwargs['first_components'], kwargs['last_components']
 
     first_best_results, first_sn_max, first_best_components = sample_components(
-        first_components, end_components, wave, flux, sim_wave, 
-        sim_flux, mjd_obs, ra, dec, location,
-        a, P_orb, i, T_not, v_sys, transit_start_end=transit_start_end,
-        remove_segments=remove_segments, sn_test=sn_test, sn_max=sn_max, sample_end=False)
+        first_components, last_components, sim_wave, 
+        sim_flux, sn_test=sn_test, sn_max=sn_max, sample_end=False, verbose=verbose, **kwargs)
 
     best_results, sn_max, last_best_components = sample_components(
-        end_components, first_best_components - 1, wave, flux, sim_wave, 
-        sim_flux, mjd_obs, ra, dec, location,
-        a, P_orb, i, T_not, v_sys, transit_start_end=transit_start_end,
-        remove_segments=remove_segments, sn_test=first_sn_max, sn_max=sn_max, sample_end=True, results=first_best_results)
+        last_components, first_best_components - 1, sim_wave, 
+        sim_flux, sn_test=first_sn_max, sn_max=sn_max, sample_end=True, results=first_best_results, verbose=verbose, **kwargs)
 
-    print(f"Best fc = {first_best_components - 1}, best lc = {last_best_components - 1}, S/N = {sn_max}")
+    debug_print(verbose, f"Best fc = {first_best_components - 1}, best lc = {last_best_components - 1}, S/N = {sn_max}")
 
     return best_results, first_best_components - 1, last_best_components - 1, sn_max
     
 
-def sample_components(start_components, stable_components, wave, flux, sim_wave, 
-                      sim_flux, mjd_obs, ra, dec, paranal,
-                        a, P_orb, i, T_not, v_sys,
-                        transit_start_end,
-                        remove_segments=[], sn_test=-50, sn_max=-100, sample_end=False, results=None):
+def sample_components(start_components, stable_components, sim_wave, 
+                      sim_flux, sn_test=-50, sn_max=-100, sample_end=False, results=None, verbose=True, **kwargs):
+
+    a, P_orb, i = kwargs['a'], kwargs['P_orb'], kwargs['i']
 
     while sn_test >= sn_max:
 
@@ -94,26 +88,28 @@ def sample_components(start_components, stable_components, wave, flux, sim_wave,
 
         # Run pipeline
         if sample_end: 
-            print("sampling from the end. new sn_max =", sn_test, "fc = ", stable_components, "lc =", start_components)
+            debug_print(verbose, f"sampling from the end. new sn_max = {sn_test} fc = {stable_components} lc = {start_components}")
+            
+            kwargs['first_components'] = stable_components 
+            kwargs['last_components'] = start_components
 
             results = pipeline(
-                wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, paranal,
-                a, P_orb, i, T_not, v_sys, transit_start_end=transit_start_end, remove_segments=remove_segments,
-                first_components=stable_components, last_components=start_components
+                sim_wave, sim_flux, verbose=verbose, **kwargs
             )
 
         else: 
-            print("sampling from the start. new sn_max =", sn_test, "fc = ", start_components, "lc =", stable_components)
+            debug_print(verbose, f"sampling from the start. new sn_max = {sn_test} fc = {start_components} lc = {stable_components}")
+
+            kwargs['first_components'] = start_components
+            kwargs['last_components'] = stable_components
 
             results = pipeline(
-                wave, flux, sim_wave, sim_flux, mjd_obs, ra, dec, paranal,
-                a, P_orb, i, T_not, v_sys, transit_start_end=transit_start_end, remove_segments=remove_segments,
-                first_components=start_components, last_components=stable_components 
+                sim_wave, sim_flux, verbose=verbose, **kwargs
             )
 
         # Compute S/N
         sn_test = find_max_sn_in_expected_range(results[8], results[5] / 1000, a, P_orb, i)
-        print("sn_test =", sn_test)
+        debug_print(verbose, "sn_test =", sn_test)
 
         start_components += 1
 
