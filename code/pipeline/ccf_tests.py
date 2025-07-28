@@ -128,7 +128,7 @@ def inject_simulated_signal(wave, flux, sim_wave, sim_flux,
                             mjd_obs, ra, dec, location, 
                             a, P_orb, i, T_not, v_sys, R_p, R_star, multiple=1, verbose=False):
     """
-    Inject a simulated signal into the observed flux array.
+    Inject a simulated signal into the observed flux array. Both flux and sim_flux must be normalized.
     """
     factor = R_p / R_star * multiple
     v_bary = compute_vbary_timeseries(ra, dec, mjd_obs, location)
