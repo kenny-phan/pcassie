@@ -141,33 +141,33 @@ def plot_pca_subtraction(spectra, wave, start_wav, end_wav, first_comps=0, last_
     plot_reconstructed_spectra(spectra[:, start_idx:end_idx], wdm_reconstructed, wave[start_idx:end_idx], title="WDM Reconstructed Spectrum")
 
 
-    ### CCF Plot Functions 
+### CCF Plot Functions 
 
-    def plot_intranit_ccfs(planet_frame_vgrid, in_transit, mean_subtracted=False):
-        plt.figure(figsize=(10, 6))
+def plot_intransit_ccfs(planet_frame_vgrid, in_transit, mean_subtracted=False):
+    plt.figure(figsize=(10, 6))
 
-        if mean_subtracted:
-            mean_subtracted_sum = np.zeros_like(planet_frame_vgrid)
-            for i, ccf in enumerate(in_transit):
-                ccf -= np.mean(ccf)  # Normalize each CCF by subtracting the mean
-                mean_subtracted_sum += ccf
-                plt.plot(np.array(planet_frame_vgrid) / 1000, ccf, label=f"Spectrum {i+1}")
-            plt.plot(planet_frame_vgrid / 1000, mean_subtracted_sum, label="Mean Subtracted Sum", color='black', linewidth=2)
-            plt.title("Mean-Subtracted In-transit CCFs")
+    if mean_subtracted:
+        mean_subtracted_sum = np.zeros_like(planet_frame_vgrid)
+        for i, ccf in enumerate(in_transit):
+            ccf -= np.mean(ccf)  # Normalize each CCF by subtracting the mean
+            mean_subtracted_sum += ccf
+            plt.plot(np.array(planet_frame_vgrid) / 1000, ccf, label=f"Spectrum {i+1}")
+        plt.plot(planet_frame_vgrid / 1000, mean_subtracted_sum, label="Mean Subtracted Sum", color='black', linewidth=2)
+        plt.title("Mean-Subtracted In-transit CCFs")
 
-        else: 
-            sum = np.zeros_like(planet_frame_vgrid)
-            for i, ccf in enumerate(in_transit):
-                sum += ccf
-                plt.plot(np.array(planet_frame_vgrid) / 1000, ccf, label=f"Spectrum {i+1}")
-            plt.plot(planet_frame_vgrid / 1000, sum, label="Sum", color='black', linewidth=2)
-            plt.title("In-transit CCFs")
+    else: 
+        sum = np.zeros_like(planet_frame_vgrid)
+        for i, ccf in enumerate(in_transit):
+            sum += ccf
+            plt.plot(np.array(planet_frame_vgrid) / 1000, ccf, label=f"Spectrum {i+1}")
+        plt.plot(planet_frame_vgrid / 1000, sum, label="Sum", color='black', linewidth=2)
+        plt.title("In-transit CCFs")
 
-        plt.xlabel(r"Velocity $[kms^{-1}]$")
-        plt.ylabel("CCF co-added value")
-        plt.legend(ncol=3, loc='lower right', fontsize='small')
-        plt.grid()
-        plt.show()
+    plt.xlabel(r"Velocity $[kms^{-1}]$")
+    plt.ylabel("CCF co-added value")
+    plt.legend(ncol=3, loc='lower right', fontsize='small')
+    plt.grid()
+    plt.show()
 
 ## CCF TEST PLOT FUNCTIONS
 

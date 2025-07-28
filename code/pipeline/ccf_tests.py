@@ -123,3 +123,24 @@ def find_max_sn_in_expected_range(sn_array, v_grid, a, P_orb, i, offset=75, zoom
     expected_range = sn_array[min_row:max_row_clip, min_col:max_col_clip]
 
     return np.max(expected_range)   
+
+def inject_simulated_signal(wave, flux, sim_wave, sim_flux, 
+                            mjd_obs, ra, dec, location, 
+                            a, P_orb, i, T_not, v_sys, R_p, R_star, multiple=1, verbose=False):
+    """
+    Inject a simulated signal into the observed flux array.
+    """
+    factor = R_p / R_star * multiple
+    v_bary = compute_vbary_timeseries(ra, dec, mjd_obs, location)
+    correction = doppler_correction(a=a, P_orb=P_orb, i=i, t=mjd_obs, T_not=T_not, v_sys=v_sys, v_bary=v_bary)
+    debug_print(verbose, f"correction: {correction}")
+    sim_on_obs_grid = interp1d(sim_wave, sim_flux, bounds_error=False, fill_value=0)
+    spectra_grid = np.zeros_like(flux)
+
+    sim_shifts = []
+    for j in range(len(mjd_obs)):
+        shifted_wave = doppler_shift(wave, correction[j])  # ← shift wavelengths, not flux
+        shifted_sim = sim_on_obs_grid(shifted_wave) * factor
+        spectra_grid[j, :] = flux[j, :] + shifted_sim
+        sim_shifts.append(shifted_sim)
+    return spectra_grid
