@@ -1,12 +1,13 @@
 import numpy as np
 
-from pipeline.utility_functions import split_detectors, debug_print
-from pipeline.pca_subtraction import pca_subtraction
-from pipeline.ccf import run_ccf_on_detector_segments
-from pipeline.ccf_tests import sn_map, welch_t_test, find_max_sn_in_expected_range
+from utility_functions import split_detectors, debug_print
+from pca_subtraction import pca_subtraction
+from ccf import run_ccf_on_detector_segments
+from ccf_tests import sn_map, welch_t_test, find_max_sn_in_expected_range
 
 def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), verbose=True, **kwargs):
-
+    """Runs principal component analysis and cross-correlation with simulated signal. Additionally outputs
+     a signal to noise map and Welch's T-test values."""
     wave, flux, mjd_obs, ra, dec, location = kwargs['wave'], kwargs['flux'], kwargs['mjd_obs'], kwargs['ra'], kwargs['dec'], kwargs['location']
     a, P_orb, i, T_not, v_sys, transit_start_end = kwargs['a'], kwargs['P_orb'], kwargs['i'], kwargs['T_not'], kwargs['v_sys'], kwargs['transit_start_end']
     gap_size, remove_segments, first_components, last_components = kwargs['gap_size'], kwargs['remove_segments'], kwargs['first_components'], kwargs['last_components']
@@ -59,7 +60,11 @@ def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 20
 
 def sample_full_pca_components(sim_wave, 
         sim_flux, sn_test=-50, sn_max=-100, verbose=True, **kwargs):
-    
+    """Loops pipeline() through the component space of the principal 
+    component analysis, progressively removing the first components 
+     (associated with the stellar spectrum and tellurics) until S/N 
+    is maximized, then doing the same to the end components 
+    (associated with uncorrelated/instrumental noise)."""
     first_components, last_components = kwargs['first_components'], kwargs['last_components']
 
     first_best_results, first_sn_max, first_best_components = sample_components(
@@ -77,7 +82,7 @@ def sample_full_pca_components(sim_wave,
 
 def sample_components(start_components, stable_components, sim_wave, 
                       sim_flux, sn_test=-50, sn_max=-100, sample_end=False, results=None, verbose=True, **kwargs):
-
+    """Samples through a range of the PCA component space to maximize S/N."""
     a, P_orb, i = kwargs['a'], kwargs['P_orb'], kwargs['i']
 
     while sn_test >= sn_max:

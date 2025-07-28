@@ -19,13 +19,15 @@ from scipy.optimize import curve_fit
 from scipy.signal import resample, find_peaks
 from astropy.constants import c
 
-from pipeline.utility_functions import split_divide_by_median
+from utility_functions import split_divide_by_median
 
 def gaussian(x, amp, mu, sigma, offset):
+    """A simple gaussian function."""
     return amp * np.exp(-0.5 * ((x - mu) / sigma) ** 2) + offset
 
 
 def fit_gaussian_to_peaks(x, y, peaks, window=5):
+    """Fit peak absoption features to gaussians."""
     centroids = []
     for idx in peaks:
         left = max(0, idx - window)
@@ -49,6 +51,7 @@ def fit_gaussian_to_peaks(x, y, peaks, window=5):
 
 
 def fit_segments_to_wavelengths(segment_centroids, tel_centroid_dict, telluric_wavelength, deg=3):
+    """Fits individual detectors to a new wavelength grid."""
     fits = {}
 
     pixel_grid = np.arange(len(telluric_wavelength))
@@ -81,13 +84,17 @@ def fit_segments_to_wavelengths(segment_centroids, tel_centroid_dict, telluric_w
 
 
 def precision(residuals, wave_arr):
-    """Wave array in nm"""
+    """A function to calculate the precision of the wavelength fit in terms of velocity. 
+    Refernce https://discovery.ucl.ac.uk/id/eprint/10066066/7/Mario_Damiano_Thesis.pdf 
+    pg. 117 for more info."""
     std = np.std(residuals)
     central_wave = np.median(wave_arr)
     return std * c / (central_wave)
 
 
 def split_and_stack(arr, gaps):
+    """Rearranges your spectrum into a 3d array with (detector, spectra, flux); 
+    i.e. a shape of (n detector x n spectra x wavelength range)"""
     segments = []
     gaps = np.concatenate(([0], gaps))
     for i in range(len(gaps) - 1):
@@ -100,11 +107,13 @@ def split_and_stack(arr, gaps):
 
 def calibrate_cr2res(data_wave, data_flux, telluric_wave, telluric_flux, gap_size_px=5, poly_order=5):
     """
+    Runs a full calibration of your spectrum. 
+
     Args: 
-    data_flux n spectra x wavelegnth array
-    data_wave 1d wavelegnth array
-    telluric_flux 1d telluric flux array
-    telluric_wave 1d telluric wavelength array
+    data_flux is an array of n spectra x wavelength array
+    data_wave is a 1d wavelength array
+    telluric_flux is a 1d telluric flux array
+    telluric_wave is a 1d telluric wavelength array
 
     Ensure the wavelegnth units match :)
     """

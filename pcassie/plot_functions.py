@@ -2,10 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from pipeline.pca_subtraction import *
+from pca_subtraction import *
 
 def plot_spectral_square(spectra_array, wave, title=None, x_label=None, y_label=None, cbar_label=None):
-
+    """Plots a 2d "spectra_array" grid against a 1d "wave" array. Valuable to show a grid od spectral observations, 
+    2d CCF arrays, etc."""
     n_spec = spectra_array.shape[0]
 
     # Create 2D grid for wave and index
@@ -29,6 +30,8 @@ def plot_spectral_square(spectra_array, wave, title=None, x_label=None, y_label=
     plt.show()
 
 def plot_preprocess(flux, wave):
+    """Plots the spectral grid at various stages of normalizing, 
+    median subtracting, and standard deviation dividing."""
     plot_spectral_square(flux, wave, title="Base Spectra")
 
     # Normalize by the median of this spectrum
@@ -55,6 +58,7 @@ def plot_preprocess(flux, wave):
     return row_std_divided_flux
 
 def plot_covariance(tdm_covariance, wdm_covariance):
+    """Plots the covariance grid of the PCA analysis in the time and wavelegnth domains."""
     plt.imshow(tdm_covariance, cmap='viridis', aspect='auto')
     plt.colorbar(label='Covariance')
     plt.title("TDM Covariance Matrix")
@@ -70,7 +74,8 @@ def plot_covariance(tdm_covariance, wdm_covariance):
     plt.show()
 
 def plot_eigenvectors(eigenvectors, title=None):
-    fig, axes = plt.subplots(5, 1, figsize=(10, 12), sharex=True)
+    """Plots the first five eigenvectors."""
+    _, axes = plt.subplots(5, 1, figsize=(10, 12), sharex=True)
     for i in range(5):
         axes[i].plot(eigenvectors[:, i], label=f'Eigenvector {i+1}')
         axes[i].set_ylabel('Value')
@@ -94,6 +99,7 @@ def plot_explained_variance(eigenvalues, title=None):
     plt.show()
 
 def plot_reconstructed_spectra(original, reconstructed, wave, title=None):
+    """Plots the original and post-PCA spectra."""
     plt.figure(figsize=(10, 6))
     plt.plot(wave, original[0], label='Original Spectrum', alpha=0.5)
     plt.plot(wave, reconstructed[0], label='Reconstructed Spectrum', linestyle='--')
@@ -144,6 +150,8 @@ def plot_pca_subtraction(spectra, wave, start_wav, end_wav, first_comps=0, last_
 ### CCF Plot Functions 
 
 def plot_intransit_ccfs(planet_frame_vgrid, in_transit, mean_subtracted=False):
+    """Plots the velocity vs. CCF value for all spectra taken at the time of transit, 
+    as well as their co-added sum. mean_subtracted effectively toggles normalization."""
     plt.figure(figsize=(10, 6))
 
     if mean_subtracted:
@@ -172,6 +180,8 @@ def plot_intransit_ccfs(planet_frame_vgrid, in_transit, mean_subtracted=False):
 ## CCF TEST PLOT FUNCTIONS
 
 def plot_welch_t_test(in_trail_vals, out_of_trail_vals, t_stat, p_value, bins=None): 
+    """Plots a histogram of Welch's T-test values for the range of values associated 
+    with the planet (in trail) vs. those outside (out trail)."""
     plt.figure(figsize=(10, 6))
     bins = bins or [0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50] 
 

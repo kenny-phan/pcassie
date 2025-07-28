@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from jax import config
 config.update("jax_enable_x64", True)
 
-from pipeline.utility_functions import debug_print
+from utility_functions import debug_print
 
 def convert_range_to_indices(wave, start, end):
     """Convert a wavelength range to indices."""

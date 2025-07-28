@@ -1,8 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
+
 from scipy.stats import ttest_ind
 from scipy.interpolate import interp1d
-from pipeline.ccf import *
+
+from ccf import *
 
 def inject_simulated_signal(wave, flux, sim_wave, sim_flux, 
                             mjd_obs, ra, dec, location, 
@@ -75,7 +76,9 @@ def sn_map(
 
 
 def welch_t_test(Kp_range_ccf, zoom_radius=15):
-    # Define zoom radius in pixels (not km/s here)
+    """Performs Welch's T-test to compare values in the CCF grid
+    that may be associated with the planet with those that are not."""
+    # Define zoom radius in pixels (typically km/s)
     Kp_range_ccf = np.array(Kp_range_ccf)  # Ensure it's a NumPy array
 
     # Step 1: Find max index in S/N map
@@ -105,6 +108,7 @@ def welch_t_test(Kp_range_ccf, zoom_radius=15):
 
 
 def find_max_sn_in_expected_range(sn_array, v_grid, a, P_orb, i, offset=75, zoom_radius=15):
+    """Finds the maximum S/N value in the range of values expected of the planet."""
     Kp = rv_amplitude(a * 1.495979e11, P_orb * 24 * 3600, np.radians(i)) / 1000
     #print(Kp)
 

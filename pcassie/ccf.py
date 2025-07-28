@@ -6,12 +6,10 @@ from astropy.time import Time
 from numba import njit
 from scipy.interpolate import interp1d
 
-from pipeline.utility_functions import debug_print
+from utility_functions import debug_print
 
 @njit
 def doppler_shift(wave_arr, velocity):
-    C = 299792458.0  # Speed of light in m/s
-
     """
     Doppler shift the wavelength array by a velocity (in m/s).
     
@@ -22,10 +20,14 @@ def doppler_shift(wave_arr, velocity):
     Returns:
         shifted_waves (1D array): Doppler-shifted wavelengths
     """
+    C = 299792458.0  # Speed of light in m/s
     return wave_arr * (1 + velocity / C)
 
 
 def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux, speed=True):
+    """Loops through all detectors and spectra to 
+    compute the cross-correlation function of each spectrum 
+    with the simulated spectrum."""
     sort_idx = np.argsort(sim_wave)
     sorted_wave = sim_wave[sort_idx]
     sorted_flux = sim_flux[sort_idx]
@@ -71,14 +73,30 @@ def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux, speed=True):
 
 # doppler shift correction functions
 def orbital_phase(t, T_not, P_orb):
+    """Calculates the orbital phase as 
+    phi(t) = (t - T_not) / P_orb
+    where phi(t) is phase as a function of time, t is time, 
+    T_not is the mid-transit time, and P_orb is the orbital period.
+    Please ensure units match."""
     return (t - T_not)/P_orb
 
 
 def orbit_velocity(a, P_orb):
+    """Calculates orbital velocity as
+    v_orb = 2*pi*a / P_orb
+    where a is the semi-major axis and 
+    P_orb is the orbital period.
+    Please ensure units match."""
     return 2 * np.pi * a / P_orb 
 
 
 def rv_amplitude(a, P_orb, i):
+    """Calculates the radial velocity amplitude as:
+    Kp = v_orb * sin(i)
+    where v_orb is the orbital velocity, i is the inclination,
+    a is the semi-major axis, and P_orb is the orbital period. 
+    See orbit_velocity for the calculation of v_orb.
+    Please ensure units match."""
     v_orb = orbit_velocity(a, P_orb)
     return v_orb * np.sin(i)
 
@@ -130,6 +148,11 @@ def compute_vbary_timeseries(ra_deg, dec_deg, times_utc, location):
 
 
 def doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, Kp=None, verbose=False):
+    """Corrects the full cross-correlation array for the Doppler shift according to
+    Vp = Kp*sin[2*pi*phi(t)] + v_sys + v_bary
+    where Vp is the velocity correction, v_sys is the systems radial velocity, and 
+    v_bary is the barcentric correction. Refer to rv_amplitude and orbital_phase 
+    for the definitions of Kp and phi(t)"""
     v_bary_timeseries = compute_vbary_timeseries(ra, dec, mjd_obs, location)
     debug_print(verbose, f"v_bary_timeseries: {v_bary_timeseries}")
     all_doppler_corrects = []
@@ -178,8 +201,7 @@ def doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a
 
 
 def remove_out_of_transit(transit_start_end, grid, mjd_obs):
-
-    # remove spectra outside of transit start and end
+    """remove spectra outside of ingress (transit start) and egress (trasnit end)."""
     transit_start, transit_end = transit_start_end
     transit_mask = (mjd_obs >= transit_start) & (mjd_obs <= transit_end)
     filtered_grid = [grid[i] for i in range(grid.shape[0]) if transit_mask[i]]
@@ -191,7 +213,7 @@ def run_ccf_on_detector_segments(all_wave,
                                  all_pca, v_shift_range, segment_indices, sim_wave, 
                                  sim_flux, mjd_obs, ra, dec, location, 
                                  a, P_orb, i, T_not, v_sys, transit_start_end, verbose=False): #sim_wave in um for now
-
+    """Full pipeline to runn cross-correlation analysis on your full dataset (n detectors x n spectra x wavelength range)"""
     
     earth_frame_ccf = ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux)
 
