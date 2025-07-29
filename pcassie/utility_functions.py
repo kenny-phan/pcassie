@@ -91,5 +91,6 @@ def mask_gap_edges(wave, gaps, n):
 
 
 def debug_print(verbose, *args, **kwargs):
+    """General function to allow for toggleable print statements."""
     if verbose:
         print(*args, **kwargs)
