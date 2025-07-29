@@ -21,3 +21,5 @@ setuptools.setup(
     ]
 )
 
+install_requires = ["numpy", "matplotlib.pyplot", "scipy", "jax", "pandas", "numba", "astropy"]
+
