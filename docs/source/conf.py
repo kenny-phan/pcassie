@@ -14,7 +14,7 @@ release = '0.1'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["sphinx.ext.napoleon", "sphinx.ext.viewcode", "nbsphinx"]
+extensions = ["sphinx.ext.napoleon", "sphinx.ext.viewcode", "nbsphinx", "sphinx.ext.autodoc"]
 
 templates_path = ['_templates']
 exclude_patterns = ['.ipynb_checkpoints/*']
