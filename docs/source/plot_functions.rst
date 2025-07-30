@@ -1,5 +1,5 @@
-plot functions reference
-========================
+Plot Functions
+==============
 
 .. autofunction:: pcassie.plot_functions.plot_spectral_square
 

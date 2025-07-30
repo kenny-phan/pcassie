@@ -1,5 +1,5 @@
-pipeline.py reference
-=====================
+Pipeline
+========
 
 .. autofunction:: pcassie.pipeline.pipeline
 

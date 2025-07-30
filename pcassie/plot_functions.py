@@ -4,6 +4,20 @@ import pandas as pd
 
 from pcassie.pca_subtraction import *
 
+plt.rcParams.update({'axes.linewidth' : 1.5,
+                     'ytick.major.width' : 1.5,
+                     'ytick.minor.width' : 1.5,
+                     'xtick.major.width' : 1.5,
+                     'xtick.minor.width' : 1.5,
+                     'xtick.labelsize': 12, 
+                     'ytick.labelsize': 12,
+                     'axes.labelsize': 18,
+                     'axes.labelpad' : 5,
+                     'axes.titlesize' : 22,
+                     'axes.titlepad' : 10,
+                     'font.family': 'Serif'
+                    })
+
 def plot_spectral_square(spectra_array, wave, title=None, x_label=None, y_label=None, cbar_label=None):
     """Plots a 2d "spectra_array" grid against a 1d "wave" array. Valuable to show a grid od spectral observations, 
     2d CCF arrays, etc."""
@@ -155,12 +169,12 @@ def plot_intransit_ccfs(planet_frame_vgrid, in_transit, mean_subtracted=False):
     plt.figure(figsize=(10, 6))
 
     if mean_subtracted:
-        mean_subtracted_sum = np.zeros_like(planet_frame_vgrid)
+        sum = np.zeros_like(planet_frame_vgrid)
         for i, ccf in enumerate(in_transit):
             ccf -= np.mean(ccf)  # Normalize each CCF by subtracting the mean
-            mean_subtracted_sum += ccf
+            sum += ccf
             plt.plot(np.array(planet_frame_vgrid) / 1000, ccf, label=f"Spectrum {i+1}")
-        plt.plot(planet_frame_vgrid / 1000, mean_subtracted_sum, label="Mean Subtracted Sum", color='black', linewidth=2)
+        plt.plot(planet_frame_vgrid / 1000, sum, label="Mean Subtracted Sum", color='black', linewidth=2)
         plt.title("Mean-Subtracted In-transit CCFs")
 
     else: 
@@ -176,6 +190,8 @@ def plot_intransit_ccfs(planet_frame_vgrid, in_transit, mean_subtracted=False):
     plt.legend(ncol=3, loc='lower right', fontsize='small')
     plt.grid()
     plt.show()
+
+    return sum
 
 ## CCF TEST PLOT FUNCTIONS
 

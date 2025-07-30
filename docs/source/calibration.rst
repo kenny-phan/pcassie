@@ -1,5 +1,5 @@
-calibration reference
-=====================
+Calibration
+===========
 
 .. autofunction:: pcassie.calibration.gaussian
 

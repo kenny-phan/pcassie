@@ -1,5 +1,5 @@
-utility function reference
-==========================
+Utility Functions
+=================
 
 .. autofunction:: pcassie.utility_functions.normalize_zero_one
 

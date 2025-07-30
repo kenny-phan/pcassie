@@ -1,4 +1,5 @@
 import numpy as np
+import multirex as mrex
 
 from pcassie.utility_functions import split_detectors, debug_print
 from pcassie.pca_subtraction import pca_subtraction
@@ -275,3 +276,19 @@ def sample_components(start_components, stable_components, sim_wave,
         start_components += 1
 
     return best_results, sn_max, best_components
+
+# def simulate_spectra(T_star, R_star, M_star, R_planet, M_planet, ):
+#     star=mrex.Star(temperature=T_star,radius=R_star,mass=M_star)
+#     planet=mrex.Planet(radius=R_planet,mass=M_planet)
+#     atmosphere=mrex.Atmosphere(
+#         temperature=696.3, # in K
+#         base_pressure=1e5, # in Pa
+#         top_pressure=1, # in Pa
+#         fill_gas="He", # the gas that fills the atmosphere
+        
+#         composition=dict(
+#             CO=-1, # This is the log10(mix-ratio) -- look into the known ratio
+#             H2O=-4,
+#             )
+#     )   
+#     return spectra

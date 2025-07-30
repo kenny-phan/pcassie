@@ -1,22 +1,22 @@
-Cross-correlation (ccf) reference
-=================================
+Cross-Correlation Function
+==========================
 
-.. autofuntion:: pcassie.ccf.doppler_shift
+.. autofunction:: pcassie.ccf.doppler_shift
 
-.. autofuntion:: pcassie.ccf.ccf
+.. autofunction:: pcassie.ccf.ccf
 
-.. autofuntion:: pcassie.ccf.orbital_phase
+.. autofunction:: pcassie.ccf.orbital_phase
 
-.. autofuntion:: pcassie.ccf.orbit_velocity
+.. autofunction:: pcassie.ccf.orbit_velocity
 
-.. autofuntion:: pcassie.ccf.rv_amplitude
+.. autofunction:: pcassie.ccf.rv_amplitude
 
-.. autofuntion:: pcassie.ccf.doppler_correction
+.. autofunction:: pcassie.ccf.doppler_correction
 
-.. autofuntion:: pcassie.ccf.compute_vbary_timeseries
+.. autofunction:: pcassie.ccf.compute_vbary_timeseries
 
-.. autofuntion:: pcassie.ccf.doppler_correct_ccf
+.. autofunction:: pcassie.ccf.doppler_correct_ccf
 
-.. autofuntion:: pcassie.ccf.remove_out_of_transit
+.. autofunction:: pcassie.ccf.remove_out_of_transit
 
-.. autofuntion:: pcassie.ccf.run_ccf_on_detector_segments
+.. autofunction:: pcassie.ccf.run_ccf_on_detector_segments

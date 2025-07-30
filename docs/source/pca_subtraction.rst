@@ -1,5 +1,5 @@
-PCA Subtraction reference
-=========================
+PCA Subtraction
+===============
 
 .. autofunction:: pcassie.pca_subtraction.convert_range_to_indices
 
