@@ -4,7 +4,7 @@ Installation
 Dependencies
 ------------
 
-``pcassie`` requires the use of `numpy <https://numpy.org/>`__.
+``pcassie`` requires the use of `astropy`, `jax`, `matplotlib`,  `numba`, `numpy <https://numpy.org/>`, and `scipy`.
 
 Installation
 ------------
