@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from pca_subtraction import *
+from pcassie.pca_subtraction import *
 
 def plot_spectral_square(spectra_array, wave, title=None, x_label=None, y_label=None, cbar_label=None):
     """Plots a 2d "spectra_array" grid against a 1d "wave" array. Valuable to show a grid od spectral observations, 

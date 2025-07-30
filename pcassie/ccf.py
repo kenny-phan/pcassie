@@ -6,7 +6,7 @@ from astropy.time import Time
 from numba import njit
 from scipy.interpolate import interp1d
 
-from utility_functions import debug_print
+from pcassie.utility_functions import debug_print
 
 @njit
 def doppler_shift(wave_arr, velocity):

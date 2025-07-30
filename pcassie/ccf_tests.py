@@ -3,7 +3,7 @@ import numpy as np
 from scipy.stats import ttest_ind
 from scipy.interpolate import interp1d
 
-from ccf import *
+from pcassie.ccf import *
 
 def inject_simulated_signal(sim_wave, sim_flux,  
                             R_p, R_star, multiple=1, verbose=False, **kwargs):

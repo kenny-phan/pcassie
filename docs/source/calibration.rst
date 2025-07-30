@@ -1,16 +1,16 @@
 calibration reference
 =====================
 
-.. autofunction:: calibration.gaussian
+.. autofunction:: pcassie.calibration.gaussian
 
-.. autofunction:: calibration.fit_gaussian_to_peaks
+.. autofunction:: pcassie.calibration.fit_gaussian_to_peaks
 
-.. autofunction:: calibration.fit_segments_to_wavelengths
+.. autofunction:: pcassie.calibration.fit_segments_to_wavelengths
 
-.. autofunction:: calibration.precision
+.. autofunction:: pcassie.calibration.precision
 
-.. autofunction:: calibration.split_and_stack
+.. autofunction:: pcassie.calibration.split_and_stack
 
-.. autofunction:: calibration.calibrate_cr2res
+.. autofunction:: pcassie.calibration.calibrate_cr2res
 
 

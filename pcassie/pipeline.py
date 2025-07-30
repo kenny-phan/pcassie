@@ -1,9 +1,9 @@
 import numpy as np
 
-from utility_functions import split_detectors, debug_print
-from pca_subtraction import pca_subtraction
-from ccf import run_ccf_on_detector_segments
-from ccf_tests import sn_map, welch_t_test, find_max_sn_in_expected_range
+from pcassie.utility_functions import split_detectors, debug_print
+from pcassie.pca_subtraction import pca_subtraction
+from pcassie.ccf import run_ccf_on_detector_segments
+from pcassie.ccf_tests import sn_map, welch_t_test, find_max_sn_in_expected_range
 
 def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), verbose=True, **kwargs):
     """Runs principal component analysis and cross-correlation with simulated signal. Additionally outputs

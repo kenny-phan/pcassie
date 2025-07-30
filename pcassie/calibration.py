@@ -19,7 +19,7 @@ from scipy.optimize import curve_fit
 from scipy.signal import resample, find_peaks
 from astropy.constants import c
 
-from utility_functions import split_divide_by_median
+from pcassie.utility_functions import split_divide_by_median
 
 def gaussian(x, amp, mu, sigma, offset):
     """A simple gaussian function."""
