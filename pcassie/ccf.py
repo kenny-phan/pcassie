@@ -13,12 +13,17 @@ def doppler_shift(wave_arr, velocity):
     """
     Doppler shift the wavelength array by a velocity (in m/s).
     
-    Parameters:
-        wave_arr (1D array): Wavelengths (in any units, e.g., nm or µm)
-        velocity (float): Velocity in m/s
+    Parameters
+    ----------
+    wave_arr: array
+        1d wavelengths array (in any units, e.g., nm or µm)
+    velocity: float
+        Velocity in m/s
 
-    Returns:
-        shifted_waves (1D array): Doppler-shifted wavelengths
+    Returns
+    -------
+    array 
+        Doppler-shifted wavelengths
     """
     C = 299792458.0  # Speed of light in m/s
     return wave_arr * (1 + velocity / C)
@@ -27,7 +32,29 @@ def doppler_shift(wave_arr, velocity):
 def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux, speed=True):
     """Loops through all detectors and spectra to 
     compute the cross-correlation function of each spectrum 
-    with the simulated spectrum."""
+    with the simulated spectrum.
+    
+    Parameters
+    ----------
+    all_pca: list
+        PCA removed spectra with dimensions (n detectors x n spectra x wavelength grid).
+    all_wave: list
+        Wavelength arrays (n detectors x wavelength grid) for the corresponding PCA subtracted spectra. 
+    v_shift_range: array
+        1d array of velocity shifts to sample. Should be structured such that 
+        the array has a step of 1 km/s, e.g. np.linspace(-100_000, 100_000, 201) with units of meters.
+    sim_wave: array
+        Simulated wave array.
+    sim_flux: array
+        Simulated flux array. 
+    speed: boolean
+        If True, uses numpy for interpolation (much faster). If False, uses scipy's interp1d (more accurate). 
+        I reccomend using numpy for PCA sampling and scipy for science data.
+        
+    Returns
+    -------
+    array
+        2d cross-correlation function array (n spectra x v_shift)"""
     sort_idx = np.argsort(sim_wave)
     sorted_wave = sim_wave[sort_idx]
     sorted_flux = sim_flux[sort_idx]

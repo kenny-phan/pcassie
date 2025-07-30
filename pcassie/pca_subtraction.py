@@ -8,7 +8,24 @@ config.update("jax_enable_x64", True)
 from utility_functions import debug_print
 
 def convert_range_to_indices(wave, start, end):
-    """Convert a wavelength range to indices."""
+    """Convert a wavelength range to indices.
+    
+    Parameters
+    ----------
+    wave: array
+        1d wavelength grid.
+    start: float
+        Starting wavelength value you want to crop to.
+    end: float
+        Ending wavelength value you want to crop to.
+
+    Returns:
+    --------
+    int
+        Index of the starting wavelength.
+    int
+        Index of the ending wavelength.
+    """
     start_index = np.searchsorted(wave, start)
     end_index = np.searchsorted(wave, end)
     return start_index, end_index
@@ -18,6 +35,16 @@ def preprocess(spectra):
     """
     Normalize by the median spectrum, subtract the median at each wavelength,
     and divide each spectrum by its own standard deviation.
+
+    Parameters
+    ----------
+    spectra: array
+        2d spectral flux grid.
+
+    Returns
+    -------
+    array
+        Median subtracted, standard deviation divided 2d spectral flux grid.
     """
     norm_flux = spectra / np.median(spectra)  # global normalization
     median_flux = np.median(norm_flux, axis=0)
@@ -29,13 +56,35 @@ def preprocess(spectra):
 
 
 def compute_covariance_matrix(data):
-    """Compute the covariance matrix using NumPy (faster than pandas)."""
+    """Compute the covariance matrix using NumPy (faster than pandas).
+    
+    Parameters
+    ----------
+    data: array
+        2d spectral array. Used after PCA analysis to the Time Domain or Wavelength Domain.
+    
+    Returns
+    -------
+    array
+        Covariance matrix."""
     centered = data - np.mean(data, axis=0)
     return centered.T @ centered / (data.shape[0] - 1)
 
 
 def compute_eigenvalues_and_vectors(cov_matrix):
-    """Compute and sort eigenvalues/eigenvectors in descending order."""
+    """Compute and sort eigenvalues/eigenvectors in descending order.
+    
+    Parameters
+    ----------
+    cov_matrix: array
+        Covariance matrix. Refer to pca_subtraction.compute_covariance_matrix.
+        
+    Returns
+    -------
+    array
+        1d array of the eigenvalues in the order from highest to lowest (I think).
+    array
+        2d array of eigenvectors in the order of their corresponding eiganvalues."""
     jax_cov_matrix = jnp.array(cov_matrix, dtype=jnp.float64)
     evals, evecs = jnp.linalg.eigh(jax_cov_matrix)
     idx = jnp.argsort(evals)[::-1]
@@ -47,12 +96,39 @@ def compute_eigenvalues_and_vectors(cov_matrix):
 
 
 def explained_variance(eigenvalues):
-    """Calculate explained variance ratio."""
+    """Calculate explained variance ratio.
+    
+    Parameters
+    ----------
+    eigenvalues: array
+        1d array of eigenvalues.
+        
+    Returns
+    -------
+    array
+        Explained variance value for each eigenvalue."""
     return eigenvalues / np.sum(eigenvalues)
 
 
 def remove_components(data, eigenvectors, first_comps=0, last_comps=0, verbose=False):
-    """Remove specified principal components from the data."""
+    """Remove specified principal components from the data.
+    
+    Parameters:
+    data: array
+        2d flux array.
+    eigenvectors: array
+        2d eigenvectors. Refer to ``pca_subtraction.compute_eigenvalues_and_vectors``.
+    first_comps: int, optional
+        Index of first components (eigenvectors) to remove.
+    last_comps: int, optional
+        Index of last components (eigenvectors) to remove.
+    verbose: boolean
+        Refer to ``utility_functions.debug_print``.
+        
+    Returns
+    -------
+    array
+        2d flux array after removing the ``first_comps`` and ``last_comps``."""
     total_comps = eigenvectors.shape[1]
     start_comps = first_comps
     end_comps = total_comps - last_comps
@@ -70,13 +146,14 @@ def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, pr
     """
     Perform PCA subtraction in a wavelength slice from `start_idx` to `end_idx`.
 
-    Args:
-        spectra (np.ndarray): 2D array of shape (num_spectra, num_wavelengths).
-        start_idx (int): Start index for PCA region.
-        end_idx (int): End index for PCA region.
-        first_comps (int): Components to remove from the beginning.
-        last_comps (int): Components to remove from the end.
-        pre (bool): Whether to apply preprocessing first.
+    Parameters
+    ----------
+    spectra (np.ndarray): 2D array of shape (num_spectra, num_wavelengths).
+    start_idx (int): Start index for PCA region.
+    end_idx (int): End index for PCA region.
+    first_comps (int): Components to remove from the beginning.
+    last_comps (int): Components to remove from the end.
+    pre (bool): Whether to apply preprocessing first.
 
     Returns:
         (tdm_result, wdm_result): PCA-subtracted arrays.
