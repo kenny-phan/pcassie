@@ -18,4 +18,3 @@ Plot Functions
 .. autofunction:: pcassie.plot_functions.plot_intransit_ccfs
 
 .. autofunction:: pcassie.plot_functions.plot_welch_t_test
-
