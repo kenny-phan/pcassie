@@ -1,4 +1,5 @@
 import numpy as np
+from numba import njit
 import os
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
 import jax.numpy as jnp
@@ -71,7 +72,7 @@ def compute_covariance_matrix(data):
     return centered.T @ centered / (data.shape[0] - 1)
 
 
-def compute_eigenvalues_and_vectors(cov_matrix):
+def compute_eigenvalues_and_vectors_jax(cov_matrix):
     """Compute and sort eigenvalues/eigenvectors in descending order.
     
     Parameters
@@ -93,6 +94,12 @@ def compute_eigenvalues_and_vectors(cov_matrix):
     evecs_sorted = np.array(evecs[:, idx])
 
     return evals_sorted, evecs_sorted
+
+@njit
+def compute_eigenvalues_and_vectors_numba(cov_matrix):
+    evals, evecs = np.linalg.eigh(cov_matrix)
+    idx = np.argsort(evals)[::-1]   
+    return evals, evecs, idx 
 
 
 def explained_variance(eigenvalues):
@@ -117,7 +124,7 @@ def remove_components(data, eigenvectors, first_comps=0, last_comps=0, verbose=F
     data: array
         2d flux array.
     eigenvectors: array
-        2d eigenvectors. Refer to ``pca_subtraction.compute_eigenvalues_and_vectors``.
+        2d eigenvectors. Refer to ``pca_subtraction.compute_eigenvalues_and_vectors_jax``.
     first_comps: int, optional
         Index of first components (eigenvectors) to remove.
     last_comps: int, optional
@@ -142,7 +149,7 @@ def remove_components(data, eigenvectors, first_comps=0, last_comps=0, verbose=F
     return projected @ proj_matrix.T
 
 
-def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, pre=False, verbose=False):
+def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, eighcalc='numba', pre=False, verbose=False):
     """
     Perform PCA subtraction in a wavelength slice from `start_idx` to `end_idx`.
 
@@ -165,12 +172,20 @@ def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, pr
     tdm = spectra_slice.T  # Transpose for TDM
     wdm = spectra_slice     # WDM as-is
 
-    # Fast covariance
+    # Fast covariance 
     tdm_cov = compute_covariance_matrix(tdm)
     wdm_cov = compute_covariance_matrix(wdm)
 
-    _, evec_tdm = compute_eigenvalues_and_vectors(tdm_cov)
-    _, evec_wdm = compute_eigenvalues_and_vectors(wdm_cov)
+    if eighcalc == 'jax':
+        _, evec_tdm = compute_eigenvalues_and_vectors_jax(tdm_cov)
+        _, evec_wdm = compute_eigenvalues_and_vectors_jax(wdm_cov)
+
+    elif eighcalc == 'numba':
+        _, evec_tdm, idx_tdm = compute_eigenvalues_and_vectors_numba(tdm_cov)
+        evec_tdm = np.array(evec_tdm[:, idx_tdm])
+
+        _, evec_wdm, idx_wdm  = compute_eigenvalues_and_vectors_numba(wdm_cov)
+        evec_wdm = np.array(evec_wdm[:, idx_wdm])
 
     debug_print(verbose, "tdm, wdm evec shapes:", evec_tdm.shape, evec_wdm.shape)
 

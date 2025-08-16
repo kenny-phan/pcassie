@@ -6,7 +6,7 @@ from pcassie.pca_subtraction import pca_subtraction
 from pcassie.ccf import run_ccf_on_detector_segments
 from pcassie.ccf_tests import sn_map, welch_t_test, find_max_sn_in_expected_range
 
-def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), verbose=True, **kwargs):
+def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), verbose=True, eighcalc='numba', **kwargs):
     """Runs principal component analysis and cross-correlation with simulated signal. Additionally outputs
     a signal to noise map and Welch's T-test values. It is more legibple to run ``results = pipeline(...)`` 
     and handle the outputs as indices of ``results``.
@@ -133,7 +133,7 @@ def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 20
         flux_i = normalized_flux_array[:, start:end]
         nanmask = ~np.isnan(wave_i) & ~np.isnan(flux_i[0])
         #print(flux_i[:, nanmask].shape)
-        tdm_concat, wdm_concat = pca_subtraction(flux_i[:, nanmask], 0, np.sum(nanmask), first_comps=first_components, last_comps=last_components, pre=True)
+        tdm_concat, wdm_concat = pca_subtraction(flux_i[:, nanmask], 0, np.sum(nanmask), first_comps=first_components, last_comps=last_components, pre=True, eighcalc=eighcalc)
         
         jax_tdm.append(tdm_concat)
         jax_wdm.append(wdm_concat)
@@ -149,7 +149,7 @@ def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 20
                                  a, P_orb, i, T_not, v_sys, transit_start_end)
     
     debug_print(verbose, "Making the S/N map...")
-    Kp_range_ccf, sn_map_array = sn_map(planet_frame_ccf, planet_frame_vgrid, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, transit_start_end) 
+    Kp_range_ccf, sn_map_array = sn_map(planet_frame_ccf, planet_frame_vgrid, **kwargs) 
 
     debug_print(verbose, "Performing Welch's t-test...")
     in_trail_vals, out_of_trail_vals, t_stat, p_value = welch_t_test(Kp_range_ccf)   
@@ -270,7 +270,7 @@ def sample_components(start_components, stable_components, sim_wave,
             )
 
         # Compute S/N
-        sn_test = find_max_sn_in_expected_range(results[8], results[5] / 1000, a, P_orb, i)
+        sn_test = find_max_sn_in_expected_range(results[8], results[5] / 1000, **kwargs)
         debug_print(verbose, "sn_test =", sn_test)
 
         start_components += 1
