@@ -143,6 +143,8 @@ Now, let's see what our data shows and what our simulated injected signal shows.
        >>> plt.legend()
        >>> plt.show()
 
+.. image:: images/co_map.png :width: 800
+
 Hmm. So it looks like the injected peak is much stronger than any similar peak in the data. This likely means that there 
 is no atmosphere, at the very least, not anything like our simulated spectrum. Oh well! Not everywhere can be Kepler-22b. 
 I hope this brief tutorial gave you a broad sense of what ``pcassie`` can do, and more tutorials will populate this site 
