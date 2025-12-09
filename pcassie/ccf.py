@@ -29,7 +29,7 @@ def doppler_shift(wave_arr, velocity):
     return wave_arr * (1 + velocity / C)
 
 
-def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux, speed=True):
+def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux, speed=True, verbose=False):
     """Loops through all detectors and spectra to 
     compute the cross-correlation function of each spectrum 
     with the simulated spectrum.
@@ -61,12 +61,14 @@ def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux, speed=True):
 
     stacked_segment_xcorr = []
     
+    debug_print(verbose, "sorted wave, flux")
     for detector_spectra, detector_wavs in zip(all_pca, all_wave):
         detector_xcorr = []
 
+        debug_print(verbose, f"cycling through {len(detector_spectra)} spectra")
         for single_data_spectra in detector_spectra:
             norm_xcorr_arr = []
-
+            debug_print(verbose, f"single_data_spectra: {len(single_data_spectra)}")
             for v_shift in v_shift_range:
                 # Doppler shift the template wavelength
                 shifted_wave = doppler_shift(sorted_wave, v_shift)
@@ -86,13 +88,20 @@ def ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux, speed=True):
 
                 # Cross-correlate (dot product)
                 xcorr = np.dot(shifted_flux, single_data_spectra)
-                norm_xcorr = xcorr / np.sqrt(np.sum(shifted_flux**2) * np.sum(single_data_spectra**2))
+                denom = np.sqrt(np.sum(shifted_flux**2) * np.sum(single_data_spectra**2))
+                if denom == 0:
+                    norm_xcorr = 0
+                else:
+                    norm_xcorr = xcorr / denom
+
                 norm_xcorr_arr.append(norm_xcorr)
 
             norm_xcorr_arr = np.array(norm_xcorr_arr)
+            debug_print(verbose, f"norm_xcorr_arr shape: {norm_xcorr_arr.shape}")
             detector_xcorr.append(norm_xcorr_arr)
 
         detector_xcorr = np.array(detector_xcorr)
+        debug_print(verbose, f"detector_xcorr shape: {detector_xcorr.shape}")
         stacked_segment_xcorr.append(detector_xcorr)
 
     return np.sum(np.array(stacked_segment_xcorr), axis=0)
@@ -202,7 +211,7 @@ def doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a
 
     for kk in range(len(summed_ccf)):
         new_vel_grid = v_shift_range + all_doppler_corrects[kk]
-        debug_print(verbose, f"start, end of new_vel_grid: {new_vel_grid[0]}, {new_vel_grid[-1]}")
+        #debug_print(verbose, f"start, end of new_vel_grid: {new_vel_grid[0]}, {new_vel_grid[-1]}")
         new_vel_grids.append(new_vel_grid)
 
     min_v, max_v = -50000, 50000
@@ -218,13 +227,14 @@ def doppler_correct_ccf(summed_ccf, v_shift_range, mjd_obs, ra, dec, location, a
         ccf = summed_ccf[i]
             
         common_mask = (v >= min_v) & (v <= max_v)
+        debug_print(verbose, f"common velocity grid shape: {common_v_grid.shape}, v shape: {v.shape}, ccf shape: {ccf.shape}, common_mask sum: {np.sum(common_mask)}")
         interp_ccf = np.interp(common_v_grid, v[common_mask], ccf[common_mask])
         cropped_ccf.append(interp_ccf)
 
     #check for nans in cropped_ccf
     debug_print(verbose, f"Cropped CCF contains NaNs: {np.any(np.isnan(cropped_ccf))}")
 
-    return np.array(cropped_ccf), common_v_grid
+    return np.array(cropped_ccf), common_v_grid 
 
 
 def remove_out_of_transit(transit_start_end, grid, mjd_obs):
@@ -242,12 +252,12 @@ def run_ccf_on_detector_segments(all_wave,
                                  a, P_orb, i, T_not, v_sys, transit_start_end, verbose=False): #sim_wave in um for now
     """Full pipeline to runn cross-correlation analysis on your full dataset (n detectors x n spectra x wavelength range)"""
     
-    earth_frame_ccf = ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux)
+    earth_frame_ccf = ccf(all_pca, all_wave, v_shift_range, sim_wave, sim_flux, verbose=verbose)
 
     # check for NaNs in earth_frame_ccf
     debug_print(verbose, f"Earth frame CCF contains NaNs: {np.any(np.isnan(earth_frame_ccf))}")
-
-    planet_frame_ccf, planet_frame_vgrid = doppler_correct_ccf(earth_frame_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys)
+    debug_print(verbose, f"Earth frame CCF shape: {earth_frame_ccf.shape}")
+    planet_frame_ccf, planet_frame_vgrid = doppler_correct_ccf(earth_frame_ccf, v_shift_range, mjd_obs, ra, dec, location, a, P_orb, i, T_not, v_sys, verbose=verbose)
 
     in_transit = remove_out_of_transit(
     transit_start_end, planet_frame_ccf, mjd_obs)

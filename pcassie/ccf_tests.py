@@ -31,12 +31,12 @@ def inject_simulated_signal(sim_wave, sim_flux,
     Returns
     -------
     array
-        new flux array with injeted signal
+        new flux array with injected signal
     """
-    wave, flux, mjd_obs, ra, dec, location = kwargs['wave'], kwargs['flux'], kwargs['mjd_obs'], kwargs['ra'], kwargs['dec'], kwargs['location']
+    wave, flux, mjd_obs, ra, dec, location = kwargs['wave'][0], kwargs['flux'], kwargs['mjd_obs'], kwargs['ra'], kwargs['dec'], kwargs['location']
     a, P_orb, i, T_not, v_sys = kwargs['a'], kwargs['P_orb'], kwargs['i'], kwargs['T_not'], kwargs['v_sys']
 
-    factor = ((R_p / R_star)**2) * multiple
+    factor = (R_p / R_star) * multiple
     v_bary = compute_vbary_timeseries(ra, dec, mjd_obs, location)
     correction = doppler_correction(a=a, P_orb=P_orb, i=i, t=mjd_obs, T_not=T_not, v_sys=v_sys, v_bary=v_bary)
     debug_print(verbose, f"correction: {correction}")
@@ -50,7 +50,6 @@ def inject_simulated_signal(sim_wave, sim_flux,
         spectra_grid[j, :] = flux[j, :] + shifted_sim
         sim_shifts.append(shifted_sim)
     return spectra_grid
-
 
 def sn_map(
     planet_frame_ccf, planet_frame_vgrid,
@@ -220,26 +219,3 @@ def find_max_sn_in_expected_range(sn_array, v_grid, offset=75, zoom_radius=15, *
     expected_range = sn_array[min_row:max_row_clip, min_col:max_col_clip]
 
     return np.max(expected_range)  
-
-def inject_simulated_signal(wave, flux, sim_wave, sim_flux, 
-                            mjd_obs, ra, dec, location, 
-                            a, P_orb, i, T_not, v_sys, R_p, R_star, multiple=1, verbose=False):
-    """
-    Inject a simulated signal into the observed flux array. Both flux and sim_flux must be normalized.
-    """
-    factor = multiple * (R_p / R_star)
-    v_bary = compute_vbary_timeseries(ra, dec, mjd_obs, location)
-    correction = doppler_correction(a=a, P_orb=P_orb, i=i, t=mjd_obs, T_not=T_not, v_sys=v_sys, v_bary=v_bary)
-    debug_print(verbose, f"correction: {correction}")
-    sim_on_obs_grid = interp1d(sim_wave, sim_flux, bounds_error=False, fill_value=0)
-    spectra_grid = np.zeros_like(flux)
-
-    sim_shifts = []
-    for j in range(len(mjd_obs)):
-        shifted_wave = doppler_shift(wave, correction[j])  # ← shift wavelengths, not flux
-        shifted_sim = sim_on_obs_grid(shifted_wave) * factor
-        spectra_grid[j, :] = flux[j, :] + shifted_sim
-        sim_shifts.append(shifted_sim)
-
-    debug_print(verbose, f"injected max: {np.nanmax(spectra_grid)}, min: {np.nanmin(spectra_grid)}")
-    return spectra_grid 

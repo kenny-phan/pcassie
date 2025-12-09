@@ -47,13 +47,17 @@ def preprocess(spectra):
     array
         Median subtracted, standard deviation divided 2d spectral flux grid.
     """
-    norm_flux = spectra / np.median(spectra)  # global normalization
+    norm_flux = spectra / np.median(spectra)
     median_flux = np.median(norm_flux, axis=0)
     median_subtracted = norm_flux - median_flux
 
-    # Use norm for per-spectrum std estimation
-    row_std = np.linalg.norm(median_subtracted, axis=1, keepdims=True) / np.sqrt(median_subtracted.shape[1])
-    return median_subtracted / row_std
+    row_std = np.linalg.norm(median_subtracted, axis=1, keepdims=True) \
+              / np.sqrt(median_subtracted.shape[1])
+
+    # avoid division by zero
+    row_std = np.where(row_std == 0.0, 1.0, row_std)
+
+    return median_subtracted / row_std, row_std
 
 
 def compute_covariance_matrix(data):
@@ -166,15 +170,14 @@ def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, ei
         (tdm_result, wdm_result): PCA-subtracted arrays.
     """
     if pre:
-        spectra = preprocess(spectra)
+        spectra, _ = preprocess(spectra)
 
     spectra_slice = spectra[:, start_idx:end_idx]
     tdm = spectra_slice.T  # Transpose for TDM
     wdm = spectra_slice     # WDM as-is
 
-    # Fast covariance 
-    tdm_cov = compute_covariance_matrix(tdm)
-    wdm_cov = compute_covariance_matrix(wdm)
+    tdm_cov = compute_covariance_matrix(tdm) # spectra x spectra
+    wdm_cov = compute_covariance_matrix(wdm) # wave x wave
 
     if eighcalc == 'jax':
         _, evec_tdm = compute_eigenvalues_and_vectors_jax(tdm_cov)
@@ -190,6 +193,7 @@ def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, ei
     debug_print(verbose, "tdm, wdm evec shapes:", evec_tdm.shape, evec_wdm.shape)
 
     # PCA removal
+    # 12/9/15 TDM is computed incorrectly here, as it is a very tall & skinny matrix. will replace w SVD soon.
     tdm_clean = remove_components(tdm, evec_tdm, first_comps, last_comps)
     wdm_clean = remove_components(wdm, evec_wdm, first_comps, last_comps)
 

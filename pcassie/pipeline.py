@@ -1,5 +1,4 @@
 import numpy as np
-import multirex as mrex
 
 from pcassie.utility_functions import split_detectors, debug_print
 from pcassie.pca_subtraction import pca_subtraction
@@ -124,7 +123,7 @@ def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 20
     debug_print(verbose, f"Retaining detector indices {keep_indices}")
 
     debug_print(verbose, "Running PCA subtraction on detector segments...")
-    jax_tdm, jax_wdm, all_wave = [], [], []
+    all_tdm, all_wdm, all_wave = [], [], []
 
     for keep_index in keep_indices:
         start, end = segment_indices[keep_index]
@@ -135,18 +134,22 @@ def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 20
         #print(flux_i[:, nanmask].shape)
         tdm_concat, wdm_concat = pca_subtraction(flux_i[:, nanmask], 0, np.sum(nanmask), first_comps=first_components, last_comps=last_components, pre=True, eighcalc=eighcalc)
         
-        jax_tdm.append(tdm_concat)
-        jax_wdm.append(wdm_concat)
+        all_tdm.append(tdm_concat)
+        all_wdm.append(wdm_concat)
         all_wave.append(wave_i[nanmask])
 
-    all_tdm = [np.array(x) for x in jax_tdm]
-    all_wdm = [np.array(x) for x in jax_wdm]
+    debug_print(verbose, "length of all_tdm: ", len(all_tdm))
+    debug_print(verbose, "length of all_wdm: ", len(all_wdm))
+    debug_print(verbose, "length of all_wave: ", len(all_wave))
+    
+    all_tdm = [np.array(x) for x in all_tdm]
+    all_wdm = [np.array(x) for x in all_wdm]
 
     debug_print(verbose, "Running CCF on detector segments...")
     earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit = run_ccf_on_detector_segments(all_wave, 
-                                 all_tdm, v_shift_range, keep_indices, sim_wave, 
+                                 all_wdm, v_shift_range, keep_indices, sim_wave, 
                                  sim_flux, mjd_obs, ra, dec, location, 
-                                 a, P_orb, i, T_not, v_sys, transit_start_end)
+                                 a, P_orb, i, T_not, v_sys, transit_start_end, verbose=verbose)
     
     debug_print(verbose, "Making the S/N map...")
     Kp_range_ccf, sn_map_array = sn_map(planet_frame_ccf, planet_frame_vgrid, **kwargs) 
@@ -159,7 +162,7 @@ def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 20
 
 
 def sample_full_pca_components(sim_wave, 
-        sim_flux, sn_test=-50, sn_max=-100, verbose=True, **kwargs):
+        sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), sn_test=-50, sn_max=-100, verbose=True, **kwargs):
     """Loops pipeline() through the component space of the principal 
     component analysis, progressively removing the first components 
      (associated with the stellar spectrum and tellurics) until S/N in 
@@ -197,11 +200,11 @@ def sample_full_pca_components(sim_wave,
 
     first_best_results, first_sn_max, first_best_components = sample_components(
         first_components, last_components, sim_wave, 
-        sim_flux, sn_test=sn_test, sn_max=sn_max, sample_end=False, verbose=verbose, **kwargs)
+        sim_flux, v_shift_range=v_shift_range, sn_test=sn_test, sn_max=sn_max, sample_end=False, verbose=verbose, **kwargs)
 
     best_results, sn_max, last_best_components = sample_components(
         last_components, first_best_components - 1, sim_wave, 
-        sim_flux, sn_test=first_sn_max, sn_max=sn_max, sample_end=True, results=first_best_results, verbose=verbose, **kwargs)
+        sim_flux, v_shift_range=v_shift_range, sn_test=first_sn_max, sn_max=sn_max, sample_end=True, results=first_best_results, verbose=verbose, **kwargs)
 
     debug_print(verbose, f"Best fc = {first_best_components - 1}, best lc = {last_best_components - 1}, S/N = {sn_max}")
 
@@ -209,7 +212,7 @@ def sample_full_pca_components(sim_wave,
     
 
 def sample_components(start_components, stable_components, sim_wave, 
-                      sim_flux, sn_test=-50, sn_max=-100, sample_end=False, results=None, verbose=True, **kwargs):
+                      sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), sn_test=-50, sn_max=-100, sample_end=False, results=None, verbose=True, **kwargs):
     """Samples through a range of the PCA component space to maximize S/N.
     
     Parameters
@@ -240,7 +243,7 @@ def sample_components(start_components, stable_components, sim_wave,
     -------
     list
         List of optimized results from pipeline.pipeline."""
-    a, P_orb, i = kwargs['a'], kwargs['P_orb'], kwargs['i']
+    # a, P_orb, i = kwargs['a'], kwargs['P_orb'], kwargs['i']
 
     while sn_test >= sn_max:
 
@@ -256,7 +259,7 @@ def sample_components(start_components, stable_components, sim_wave,
             kwargs['last_components'] = start_components
 
             results = pipeline(
-                sim_wave, sim_flux, verbose=verbose, **kwargs
+                sim_wave, sim_flux, v_shift_range=v_shift_range, verbose=verbose, **kwargs
             )
 
         else: 
@@ -266,7 +269,7 @@ def sample_components(start_components, stable_components, sim_wave,
             kwargs['last_components'] = stable_components
 
             results = pipeline(
-                sim_wave, sim_flux, verbose=verbose, **kwargs
+                sim_wave, sim_flux, v_shift_range=v_shift_range, verbose=verbose, **kwargs
             )
 
         # Compute S/N
