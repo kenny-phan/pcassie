@@ -27,4 +27,10 @@ jobs:
         pip install pytest
         pip install pytest-cov
         pip install scipy
+        pip install matplotlib
+        pip install jax
+        pip install pandas
+        pip install numba
+        pip install astropy 
+        
         pytest -v tests/ --cov=pcassie/
