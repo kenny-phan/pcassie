@@ -2,6 +2,7 @@
 
 [![Documentation Status](https://readthedocs.org/projects/pcassie/badge/?version=latest)](https://pcassie.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/github/kenny-phan/pcassie/branch/main/graph/badge.svg?token=BDQ5Q08DWU)](https://codecov.io/github/kenny-phan/pcassie)
+[![image](http://img.shields.io/badge/license-MIT-brightgreen.svg)](https://github.com/kenny-phan/pcassie/blob/main/LICENSE)
 
 Code based on M. Damiano, G. Micela, and G. Tinetti (2019). _[A Principal Component Analysis-based Method to Analyze High-resolution Spectroscopic Data on Exoplanets
 ](https://doi.org/10.3847/1538-4357/ab22b2)_
