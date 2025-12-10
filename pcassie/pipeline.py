@@ -278,7 +278,7 @@ def sample_components(start_components, stable_components, sim_wave,
 
         start_components += 1
 
-    return best_results, sn_max, best_components
+    return best_results, sn_max, best_components    
 
 # def simulate_spectra(T_star, R_star, M_star, R_planet, M_planet, ):
 #     star=mrex.Star(temperature=T_star,radius=R_star,mass=M_star)
