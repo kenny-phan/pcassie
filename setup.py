@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pcassie",
-    version="0.1",
+    version="0.1.0",
     author="Kenny T. Phan",
     author_email="kenny.phan@yale.edu",
     description="A Pincipal Component Pipeline based on Damiano et al. 2019",
