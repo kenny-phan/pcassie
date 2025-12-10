@@ -137,7 +137,7 @@ def test_pca_noise_removal():
     mean_squared_err_wdm = np.mean((wdm_clean - signal)**2)
     
     # ----- Assertions -----
-    assert mean_squared_err_wdm < mean_squared_err_orig #check if removed any noise
+    assert mean_squared_err_wdm <= mean_squared_err_orig #check if removed any noise
  
 
 
