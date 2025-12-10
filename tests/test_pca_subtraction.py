@@ -111,7 +111,7 @@ def test_pca_noise_removal():
 
     signal = (np.linspace(0, 1, n_samples))[:,None] * np.ones((1, n_features))
     # correlated_noise = 0.05 * (np.random.rand(n_samples, 1) @ np.random.rand(1, n_features))
-    white_noise = 0.01 * np.random.normal(n_samples, n_features)
+    white_noise = (0.01 * np.random.normal(n_samples, n_features)) + (0.01 * np.random.rand(n_samples, n_features))
 
     # noise = correlated_noise + white_noise
     data = signal + white_noise
