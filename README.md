@@ -1,5 +1,5 @@
 # pcassie
-=========
+
 [![Documentation Status](https://readthedocs.org/projects/pcassie/badge/?version=latest)](https://pcassie.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/github/kenny-phan/pcassie/branch/main/graph/badge.svg?token=BDQ5Q08DWU)](https://codecov.io/github/kenny-phan/pcassie)
 
