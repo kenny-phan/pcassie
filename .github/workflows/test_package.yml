@@ -18,7 +18,7 @@ jobs:
           pip install pytest
           pip install pytest-cov
       - name: Run tests and collect coverage
-        run: pytest --cov app --junitxml=junit.xml -o junit_family=legacy
+        run: pytest --cov .
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@v1
