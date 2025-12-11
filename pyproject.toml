@@ -8,3 +8,5 @@ dynamic = ["version", "description", "readme", "authors", "classifiers"]
 
 [tool.setuptools_scm]
 write_to = "pcassie/_version.py"
+local_scheme = "no-local-version"
+version_scheme = "guess-next-dev"
