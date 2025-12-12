@@ -193,8 +193,20 @@ def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, ei
     debug_print(verbose, "tdm, wdm evec shapes:", evec_tdm.shape, evec_wdm.shape)
 
     # PCA removal
-    # 12/9/15 TDM is computed incorrectly here, as it is a very tall & skinny matrix. will replace w SVD soon.
-    tdm_clean = remove_components(tdm, evec_tdm, first_comps, last_comps)
+    tdm_clean = remove_components(tdm, evec_tdm, first_comps, last_comps).T
     wdm_clean = remove_components(wdm, evec_wdm, first_comps, last_comps)
+    # need to divide each column by std of the column
 
-    return tdm_clean.T, wdm_clean
+    # Standard deviation of each column
+    tdm_std = np.std(tdm_clean, axis=0, ddof=1)
+    wdm_std = np.std(wdm_clean, axis=0, ddof=1)
+
+    # Avoid division by zero
+    tdm_std[tdm_std == 0] = 1
+    wdm_std[wdm_std == 0] = 1
+
+    # Normalize each column
+    tdm_clean /= tdm_std
+    wdm_clean /= wdm_std
+    
+    return tdm_clean, wdm_clean
