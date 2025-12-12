@@ -31,33 +31,47 @@ def convert_range_to_indices(wave, start, end):
     end_index = np.searchsorted(wave, end)
     return start_index, end_index
 
-
-def preprocess(spectra):
+def forward_preprocess(spectra):
     """
-    Normalize by the median spectrum, subtract the median at each wavelength,
-    and divide each spectrum by its own standard deviation.
-
-    Parameters
-    ----------
-    spectra: array
-        2d spectral flux grid.
-
-    Returns
-    -------
-    array
-        Median subtracted, standard deviation divided 2d spectral flux grid.
+    Returns:
+      preprocessed (n_rows, n_cols),
+      row_std (n_rows, 1),
+      col_med (1, n_cols)  # keep as 2D for easy broadcasting
+      global_med (scalar)
     """
-    norm_flux = spectra / np.median(spectra)
-    median_flux = np.median(norm_flux, axis=0)
-    median_subtracted = norm_flux - median_flux
+    global_med = np.median(spectra)                     # scalar
+    norm_flux = spectra / global_med                    # shape (n_rows, n_cols)
+    col_med = np.median(norm_flux, axis=0, keepdims=True)  # shape (1, n_cols)
+    median_subtracted = norm_flux - col_med             # shape (n_rows, n_cols)
 
     row_std = np.linalg.norm(median_subtracted, axis=1, keepdims=True) \
               / np.sqrt(median_subtracted.shape[1])
+    row_std = np.where(row_std == 0.0, 1.0, row_std)    # avoid zeros
 
-    # avoid division by zero
-    row_std = np.where(row_std == 0.0, 1.0, row_std)
+    preprocessed = median_subtracted / row_std          # same shape (n_rows, n_cols)
+    return preprocessed, row_std, col_med, global_med
 
-    return median_subtracted / row_std, row_std
+
+def inverse_preprocess(preprocessed_slice, row_std, col_med, global_med, start_idx, end_idx):
+    """
+    Invert preprocessing for just the wavelength slice [start_idx:end_idx).
+    preprocessed_slice: shape (n_rows, n_slice_cols)
+    row_std: shape (n_rows, 1)
+    col_med: shape (1, n_cols_total)  <-- we'll index into the relevant slice
+    global_med: scalar
+    start_idx, end_idx: slice indices to pick the right columns from col_med
+    """
+    # 1) undo row normalization
+    median_subtracted = preprocessed_slice * row_std                     # broadcasts along columns
+
+    # 2) add back column median for that slice
+    col_med_slice = col_med[:, start_idx:end_idx]                        # shape (1, n_slice_cols)
+    norm_flux_slice = median_subtracted + col_med_slice                  # shapes broadcast
+
+    # 3) undo global normalization
+    reconstructed_slice = norm_flux_slice * global_med                   # shape (n_rows, n_slice_cols)
+    return reconstructed_slice
+
 
 
 def compute_covariance_matrix(data):
@@ -170,9 +184,12 @@ def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, ei
         (tdm_result, wdm_result): PCA-subtracted arrays.
     """
     if pre:
-        spectra, _ = preprocess(spectra)
+        spectra_pre, row_std, col_med, global_med = forward_preprocess(spectra)
+    else:
+        spectra_pre = spectra
+        row_std = col_med = global_med = None
 
-    spectra_slice = spectra[:, start_idx:end_idx]
+    spectra_slice = spectra_pre[:, start_idx:end_idx]
     tdm = spectra_slice.T  # Transpose for TDM
     wdm = spectra_slice     # WDM as-is
 
@@ -197,16 +214,12 @@ def pca_subtraction(spectra, start_idx, end_idx, first_comps=0, last_comps=0, ei
     wdm_clean = remove_components(wdm, evec_wdm, first_comps, last_comps)
     # need to divide each column by std of the column
 
-    # Standard deviation of each column
-    tdm_std = np.std(tdm_clean, axis=0, ddof=1)
-    wdm_std = np.std(wdm_clean, axis=0, ddof=1)
-
-    # Avoid division by zero
-    tdm_std[tdm_std == 0] = 1
-    wdm_std[wdm_std == 0] = 1
-
-    # Normalize each column
-    tdm_clean /= tdm_std
-    wdm_clean /= wdm_std
-    
-    return tdm_clean, wdm_clean
+    if pre:
+        # wdm_clean is shape (n_rows, n_slice_cols)
+        # multiply rows by row_std (broadcasting) and add back medians & global scale
+        wdm_reconstructed_slice = inverse_preprocess(wdm_clean, row_std, col_med, global_med, start_idx, end_idx)
+        # for TDM we transposed earlier; if you need the full-spectrum TDM result, do similar
+        tdm_reconstructed_slice = inverse_preprocess(tdm_clean, row_std, col_med, global_med, start_idx, end_idx)
+        return tdm_reconstructed_slice, wdm_reconstructed_slice
+    else:
+        return tdm_clean, wdm_clean

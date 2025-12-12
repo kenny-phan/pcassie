@@ -136,7 +136,7 @@ def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 20
         
         all_tdm.append(tdm_concat)
         all_wdm.append(wdm_concat)
-        all_wave.append(wave_i[nanmask])
+        all_wave.append(wave_i[nanmask])    
 
     debug_print(verbose, "length of all_tdm: ", len(all_tdm))
     debug_print(verbose, "length of all_wdm: ", len(all_wdm))
@@ -147,7 +147,7 @@ def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 20
 
     debug_print(verbose, "Running CCF on detector segments...")
     earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit = run_ccf_on_detector_segments(all_wave, 
-                                 all_wdm, v_shift_range, keep_indices, sim_wave, 
+                                 all_tdm, v_shift_range, keep_indices, sim_wave, 
                                  sim_flux, mjd_obs, ra, dec, location, 
                                  a, P_orb, i, T_not, v_sys, transit_start_end, verbose=verbose)
     
@@ -159,57 +159,6 @@ def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 20
     
     debug_print(verbose, "Pipeline completed successfully.")
     return all_tdm, all_wdm, all_wave, earth_frame_ccf, planet_frame_ccf, planet_frame_vgrid, in_transit, Kp_range_ccf, sn_map_array, in_trail_vals, out_of_trail_vals, t_stat, p_value
-
-
-def sample_full_pca_components(sim_wave, 
-        sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), sn_test=-50, sn_max=-100, verbose=True, **kwargs):
-    """Loops pipeline() through the component space of the principal 
-    component analysis, progressively removing the first components 
-     (associated with the stellar spectrum and tellurics) until S/N in 
-     the range of the exoplanetary parameters (+- 15 km/s from Kp=Kp, velocity in planet frame = 0)
-    is maximized, then doing the same to the end components 
-    (associated with uncorrelated/instrumental noise).
-    
-    Parameters
-    ----------
-    sim_wave: array
-        Refer to pipeline.pipeline.
-    sim_flux: array 
-        Refer to pipeline.pipeline.
-    sn_test: int
-        Starting value for the S/N test value. Must be greater than ``sn_max`` but still start quite low.
-    sn_max: int
-        Starting value for the S/N max value. Must be less than ``sn_test``.
-    verbose: boolean
-        Refer to pipeline.pipeline
-    **kwargs
-        Refer to pipeline.pipeline.
-
-    Returns
-    -------
-    list
-        List of the returned values in pipeline.pipeline for the optimal range of PCA components.
-    int
-        Optimal value for ``first_components``.
-    int
-        Optimal value for ``last_components``.
-    float
-        Maximum S/N value in planetary parameter range. 
-    """
-    first_components, last_components = kwargs['first_components'], kwargs['last_components']
-
-    first_best_results, first_sn_max, first_best_components = sample_components(
-        first_components, last_components, sim_wave, 
-        sim_flux, v_shift_range=v_shift_range, sn_test=sn_test, sn_max=sn_max, sample_end=False, verbose=verbose, **kwargs)
-
-    best_results, sn_max, last_best_components = sample_components(
-        last_components, first_best_components - 1, sim_wave, 
-        sim_flux, v_shift_range=v_shift_range, sn_test=first_sn_max, sn_max=sn_max, sample_end=True, results=first_best_results, verbose=verbose, **kwargs)
-
-    debug_print(verbose, f"Best fc = {first_best_components - 1}, best lc = {last_best_components - 1}, S/N = {sn_max}")
-
-    return best_results, first_best_components - 1, last_best_components - 1, sn_max
-    
 
 def sample_components(start_components, stable_components, sim_wave, 
                       sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), sn_test=-50, sn_max=-100, sample_end=False, results=None, verbose=True, **kwargs):
@@ -280,18 +229,53 @@ def sample_components(start_components, stable_components, sim_wave,
 
     return best_results, sn_max, best_components    
 
-# def simulate_spectra(T_star, R_star, M_star, R_planet, M_planet, ):
-#     star=mrex.Star(temperature=T_star,radius=R_star,mass=M_star)
-#     planet=mrex.Planet(radius=R_planet,mass=M_planet)
-#     atmosphere=mrex.Atmosphere(
-#         temperature=696.3, # in K
-#         base_pressure=1e5, # in Pa
-#         top_pressure=1, # in Pa
-#         fill_gas="He", # the gas that fills the atmosphere
-        
-#         composition=dict(
-#             CO=-1, # This is the log10(mix-ratio) -- look into the known ratio
-#             H2O=-4,
-#             )
-#     )   
-#     return spectra
+
+def sample_full_pca_components(sim_wave, 
+        sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), sn_test=-50, sn_max=-100, verbose=True, **kwargs):
+    """Loops pipeline() through the component space of the principal 
+    component analysis, progressively removing the first components 
+     (associated with the stellar spectrum and tellurics) until S/N in 
+     the range of the exoplanetary parameters (+- 15 km/s from Kp=Kp, velocity in planet frame = 0)
+    is maximized, then doing the same to the end components 
+    (associated with uncorrelated/instrumental noise).
+    
+    Parameters
+    ----------
+    sim_wave: array
+        Refer to pipeline.pipeline.
+    sim_flux: array 
+        Refer to pipeline.pipeline.
+    sn_test: int
+        Starting value for the S/N test value. Must be greater than ``sn_max`` but still start quite low.
+    sn_max: int
+        Starting value for the S/N max value. Must be less than ``sn_test``.
+    verbose: boolean
+        Refer to pipeline.pipeline
+    **kwargs
+        Refer to pipeline.pipeline.
+
+    Returns
+    -------
+    list
+        List of the returned values in pipeline.pipeline for the optimal range of PCA components.
+    int
+        Optimal value for ``first_components``.
+    int
+        Optimal value for ``last_components``.
+    float
+        Maximum S/N value in planetary parameter range. 
+    """
+    first_components, last_components = kwargs['first_components'], kwargs['last_components']
+
+    first_best_results, first_sn_max, first_best_components = sample_components(
+        first_components, last_components, sim_wave, 
+        sim_flux, v_shift_range=v_shift_range, sn_test=sn_test, sn_max=sn_max, sample_end=False, verbose=verbose, **kwargs)
+
+    best_results, sn_max, last_best_components = sample_components(
+        last_components, first_best_components - 1, sim_wave, 
+        sim_flux, v_shift_range=v_shift_range, sn_test=first_sn_max, sn_max=sn_max, sample_end=True, results=first_best_results, verbose=verbose, **kwargs)
+
+    debug_print(verbose, f"Best fc = {first_best_components - 1}, best lc = {last_best_components - 1}, S/N = {sn_max}")
+
+    return best_results, first_best_components - 1, last_best_components - 1, sn_max
+    

@@ -95,7 +95,6 @@ def test_pca_removes_dominant_component():
     cleaned_norm_wdm = np.linalg.norm(wdm_clean)
 
     # The cleaned_norm should be much smaller than orig_norm (signal removed).
-    # Because we only used tiny noise, require e.g. cleaned_norm < 0.1 * orig_norm
     assert cleaned_norm_tdm < 0.1 * orig_norm
     assert cleaned_norm_wdm < 0.1 * orig_norm
     
