@@ -5,7 +5,7 @@ from pcassie.pca_subtraction import pca_subtraction
 from pcassie.ccf import run_ccf_on_detector_segments
 from pcassie.ccf_tests import sn_map, welch_t_test, find_max_sn_in_expected_range
 
-def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), verbose=True, eighcalc='numba', **kwargs):
+def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 201), Kp_range=np.linspace(50_000, 150_000, 101), verbose=True, eighcalc='numba', **kwargs):
     """Runs principal component analysis and cross-correlation with simulated signal. Additionally outputs
     a signal to noise map and Welch's T-test values. It is more legibple to run ``results = pipeline(...)`` 
     and handle the outputs as indices of ``results``.
@@ -152,7 +152,7 @@ def pipeline(sim_wave, sim_flux, v_shift_range=np.linspace(-100_000, 100_000, 20
                                  a, P_orb, i, T_not, v_sys, transit_start_end, verbose=verbose)
     
     debug_print(verbose, "Making the S/N map...")
-    Kp_range_ccf, sn_map_array = sn_map(planet_frame_ccf, planet_frame_vgrid, **kwargs) 
+    Kp_range_ccf, sn_map_array = sn_map(planet_frame_ccf, planet_frame_vgrid, Kp_range=Kp_range, **kwargs) 
 
     debug_print(verbose, "Performing Welch's t-test...")
     in_trail_vals, out_of_trail_vals, t_stat, p_value = welch_t_test(Kp_range_ccf)   
